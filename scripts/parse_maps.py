@@ -135,7 +135,7 @@ def process_maps():
 
     features = 7
 
-    feature_matrix = np.zeros((elev_img.shape[0], elev_img.shape[1], features))
+    feature_matrix = np.zeros((elev_img.shape[1], elev_img.shape[0], features))
 
     pbar = tqdm(total=elev_img.shape[0]*elev_img.shape[1])
     progress = 0
@@ -174,13 +174,13 @@ def process_maps():
                 feet_per_pixel = 15632
                 gradient = scored_diff / feet_per_pixel
 
-            feature_matrix[y, x][0] = elevation
-            feature_matrix[y, x][1] = gradient
-            feature_matrix[y, x][2] = water_score
-            feature_matrix[y, x][3] = temp_score
-            feature_matrix[y, x][4] = precip_score
-            feature_matrix[y, x][5] = resource_type
-            feature_matrix[y, x][6] = biome_type
+            feature_matrix[x, y][0] = elevation
+            feature_matrix[x, y][1] = gradient
+            feature_matrix[x, y][2] = water_score
+            feature_matrix[x, y][3] = temp_score
+            feature_matrix[x, y][4] = precip_score
+            feature_matrix[x, y][5] = resource_type
+            feature_matrix[x, y][6] = biome_type
 
             pbar.update(1)
             progress += 1
@@ -212,3 +212,4 @@ if __name__ == "__main__":
     # plt.show()
 
     print(feature_matrix.shape)
+    print(feature_matrix[0, 0])

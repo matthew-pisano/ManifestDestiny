@@ -194,7 +194,7 @@ if __name__ == "__main__":
 
     feature_matrix = process_maps()
 
-    feature_matrix.astype(np.ushort).tofile("out/feature_matrix.npy")
+    feature_matrix.astype(np.ushort).tofile("out/initial_state.npy")
 
     # select_features = feature_matrix[:, :, 0]
     # X, Y = np.meshgrid(np.arange(select_features.shape[1]), np.arange(select_features.shape[0]))

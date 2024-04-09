@@ -1,0 +1,8 @@
+//
+// Created by matthew on 4/9/24.
+//
+
+#ifndef MANIFEST_DESTINY_CUDA_UTILS_CUH
+#define MANIFEST_DESTINY_CUDA_UTILS_CUH
+
+#endif //MANIFEST_DESTINY_CUDA_UTILS_CUH

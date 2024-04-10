@@ -177,7 +177,6 @@ def process_image(processType: ProcessEnum = ProcessEnum.ELEVATION):
     pbar.close()
 
     cv2.imwrite(out_name, output_img)
-    cv2.destroyAllWindows()
 
 
 if __name__ == "__main__":

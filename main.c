@@ -6,38 +6,14 @@
 #include "simulate.h"
 
 
-int load_test_seq() {
-
-    unsigned short *data;
-    int cell_dim = 7;
-    int row_dim = 623;
-    int col_dim = 994;
-
-    const char *in_filename = "scripts/out/initial_state.npy";
-    const char *out_filename = "scripts/out/final_state.npy";
-    int err;
-    if ((err = load_data_seq(in_filename, cell_dim, row_dim, col_dim, &data))) {
-        printf("Error: Could not load data from file %s\n", in_filename);
-        return err;
-    }
-    else {
-        if ((err = save_data_seq(out_filename, cell_dim, row_dim, col_dim, data))) {
-            printf("Error: Could not save data to file %s\n", out_filename);
-            return err;
-        }
-    }
-
-    return 0;
-}
-
-
 int main(int argc, char **argv) {
 
     int rank, num_ranks;
     unsigned short *data;
-    int cell_dim = 7;
+    int cell_dim = 8;
     int row_dim = 623;
     int col_dim = 994;
+    int iterations;
     char *in_filename, *out_filename;
 
     // Initialize the MPI environment
@@ -51,13 +27,15 @@ int main(int argc, char **argv) {
 
     in_filename = argv[1];
     out_filename = argv[2];
+    iterations = atoi(argv[3]);
+
     int err;
     if ((err = load_data_mpi(in_filename, cell_dim, row_dim, col_dim, rank, num_ranks, &data))) {
         printf("Error: Could not load data from file %s\n", in_filename);
         return err;
     }
 
-    simulate(1, cell_dim, row_dim, col_dim, rank, num_ranks, data);
+    simulate(iterations, cell_dim, row_dim, col_dim, rank, num_ranks, data);
 
     if ((err = save_data_mpi(out_filename, cell_dim, row_dim, col_dim, rank, num_ranks, data))) {
         printf("Error: Could not save data to file %s\n", out_filename);

@@ -11,10 +11,10 @@
 // NOTE: Data is flattened!  If mapped to an x,y coordinate system is in column-major order
 // Each cell is composed of several features, multiply by cell_dim to get the index of the next cell
 /* (0, 0)       North
- *       |  |->|  |->|  |->|
- * West  |  |  |  |  |  |  |  East
- *       |  |  |  |  |  |  |
- *       |->|  |->|  |->|  |-> (993, 622)
+ *       ||  .->||  .->||  .->||
+ * West  ||  .  ||  .  ||  .  ||  East
+ *       ||  .  ||  .  ||  .  ||
+ *       ||->.  ||->.  ||->.  ||-> (993, 622)
  *              South
  */
 

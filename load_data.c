@@ -18,20 +18,20 @@
  *              South
  */
 
-int load_data_seq(const char *filename, int cell_dim, int row_dim, int col_dim, unsigned short **data) {
+int load_data_seq(const char *filename, struct DataDims data_dims, unsigned short **data) {
     FILE *file = fopen(filename, "r");
     if (file == NULL) {
         printf("Error: Could not open file %s\n", filename);
         return 1;
     }
 
-    *data = (unsigned short *)calloc(cell_dim * row_dim * col_dim, sizeof(unsigned short));
+    *data = (unsigned short *)calloc(data_dims.cell_dim * data_dims.row_dim * data_dims.col_dim, sizeof(unsigned short));
     if (*data == NULL) {
         printf("Error: Could not allocate memory for data\n");
         return 1;
     }
 
-    for (int i = 0; i<cell_dim * row_dim * col_dim; i++) {
+    for (int i = 0; i<data_dims.cell_dim * data_dims.row_dim * data_dims.col_dim; i++) {
         // Read in two bytes from the file and saves them as an unsigned short
         fread((*data)+i, sizeof(unsigned short), 1, file);
     }
@@ -41,14 +41,14 @@ int load_data_seq(const char *filename, int cell_dim, int row_dim, int col_dim, 
 }
 
 
-int save_data_seq(const char *filename, int cell_dim, int row_dim, int col_dim, unsigned short *data) {
+int save_data_seq(const char *filename, struct DataDims data_dims, unsigned short *data) {
     FILE *file = fopen(filename, "w");
     if (file == NULL) {
         printf("Error: Could not open file %s\n", filename);
         return 1;
     }
 
-    for (int i = 0; i<cell_dim * row_dim * col_dim; i++) {
+    for (int i = 0; i<data_dims.cell_dim * data_dims.row_dim * data_dims.col_dim; i++) {
         // Write two bytes to the file
         fwrite(&data[i], sizeof(unsigned short), 1, file);
     }
@@ -58,9 +58,9 @@ int save_data_seq(const char *filename, int cell_dim, int row_dim, int col_dim, 
 }
 
 
-int load_data_mpi(const char *filename, int col_offset, int cell_dim, int row_dim, int col_dim, int rank, int num_ranks, unsigned short **data) {
+int load_data_mpi(const char *filename, int col_offset, struct DataDims data_dims, unsigned short **data) {
 
-    *data = (unsigned short *)calloc(row_dim * cell_dim * col_dim, sizeof(unsigned short));
+    *data = (unsigned short *)calloc(data_dims.row_dim * data_dims.cell_dim * data_dims.col_dim, sizeof(unsigned short));
     if (*data == NULL) {
         printf("Error: Could not allocate memory for data\n");
         return 1;
@@ -73,11 +73,11 @@ int load_data_mpi(const char *filename, int col_offset, int cell_dim, int row_di
         printf("Error: Could not open file %s\n", filename);
         return err;
     }
-    if ((err = MPI_File_seek(file, col_offset * cell_dim * col_dim * sizeof(unsigned short), MPI_SEEK_SET))) {
+    if ((err = MPI_File_seek(file, col_offset * data_dims.cell_dim * data_dims.col_dim * sizeof(unsigned short), MPI_SEEK_SET))) {
         printf("Error: Could not seek to position in file\n");
         return err;
     }
-    if ((err = MPI_File_read(file, *data, row_dim * cell_dim * col_dim, MPI_UNSIGNED_SHORT, &status))) {
+    if ((err = MPI_File_read(file, *data, data_dims.row_dim * data_dims.cell_dim * data_dims.col_dim, MPI_UNSIGNED_SHORT, &status))) {
         printf("Error: Could not read data from file\n");
         return err;
     }
@@ -92,7 +92,7 @@ int load_data_mpi(const char *filename, int col_offset, int cell_dim, int row_di
 }
 
 
-int save_data_mpi(const char *filename, int col_offset, int cell_dim, int row_dim, int col_dim, int rank, int num_ranks, unsigned short *data) {
+int save_data_mpi(const char *filename, int col_offset, struct DataDims data_dims, unsigned short *data) {
 
     MPI_File file;
     MPI_Status status;
@@ -101,11 +101,11 @@ int save_data_mpi(const char *filename, int col_offset, int cell_dim, int row_di
         printf("Error: Could not open file %s\n", filename);
         return err;
     }
-    if ((err = MPI_File_seek(file, col_offset * cell_dim * col_dim * sizeof(unsigned short), MPI_SEEK_SET))) {
+    if ((err = MPI_File_seek(file, col_offset * data_dims.cell_dim * data_dims.col_dim * sizeof(unsigned short), MPI_SEEK_SET))) {
         printf("Error: Could not seek to position in file\n");
         return err;
     }
-    if ((err = MPI_File_write(file, data, row_dim * cell_dim * col_dim, MPI_UNSIGNED_SHORT, &status))) {
+    if ((err = MPI_File_write(file, data, data_dims.row_dim * data_dims.cell_dim * data_dims.col_dim, MPI_UNSIGNED_SHORT, &status))) {
         printf("Error: Could not write data to file\n");
         return err;
     }
@@ -117,19 +117,4 @@ int save_data_mpi(const char *filename, int col_offset, int cell_dim, int row_di
     // printf("Wrote %lu bytes from rank %d\n", write_cols * cell_dim * row_dim * sizeof(unsigned short), rank);
 
     return 0;
-}
-
-
-int gather_data_mpi(int cell_dim, int row_dim, int col_dim, int rank, int num_ranks, unsigned short *rank_data, unsigned short *all_data) {
-//
-//    int cols_per_rank = col_dim / num_ranks;
-//    int recvcounts[num_ranks], displs[num_ranks];
-//    for (int i = 0; i < num_ranks; i++) {
-//
-//        int send_cols = (rank == num_ranks - 1) ? cols_per_rank + col_dim % num_ranks : cols_per_rank;
-//        recvcounts[i] = send_cols * cell_dim * row_dim;
-//        displs[i] = i * cols_per_rank * cell_dim * row_dim;
-//    }
-//
-//    return MPI_Gatherv(rank_data, recvcounts[rank], MPI_UNSIGNED_SHORT, all_data, recvcounts, displs, MPI_UNSIGNED_SHORT, 0, MPI_COMM_WORLD);
 }

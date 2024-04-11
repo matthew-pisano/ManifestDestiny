@@ -4,6 +4,7 @@
 
 #include "load_data.h"
 #include "simulate.h"
+#include "data_rep.h"
 
 
 int main(int argc, char **argv) {
@@ -42,15 +43,17 @@ int main(int argc, char **argv) {
     if (rank == num_ranks - 1)
         read_cols += row_dim % num_ranks;
 
+    struct DataDims data_dims = {cell_dim, read_cols, col_dim};
+
     int err;
-    if ((err = load_data_mpi(in_filename, cols_per_rank*rank, cell_dim, read_cols, col_dim, rank, num_ranks, &data))) {
+    if ((err = load_data_mpi(in_filename, cols_per_rank*rank, data_dims, &data))) {
         printf("Error: Could not load data from file %s\n", in_filename);
         return err;
     }
 
-    simulate(iterations, cell_dim, read_cols, col_dim, rank, num_ranks, &data);
+    simulate(iterations, data_dims, rank, num_ranks, &data);
 
-    if ((err = save_data_mpi(out_filename, cols_per_rank*rank, cell_dim, read_cols, col_dim, rank, num_ranks, data))) {
+    if ((err = save_data_mpi(out_filename, cols_per_rank*rank, data_dims, data))) {
         printf("Error: Could not save data to file %s\n", out_filename);
         return err;
     }

@@ -6,6 +6,9 @@
 #include <mpi.h>
 #include <stdio.h>
 
+#include "simulate.h"
+#include "populate.h"
+
 #define LAST_COL_TAG 0
 #define FIRST_COL_TAG 1
 #define NO_RANK -1
@@ -16,40 +19,11 @@ static inline void swap(unsigned short **a, unsigned short **b) {
     *b = temp;
 }
 
-// Counts the values present in all eight cell neighbors.  The offset of the given target cell from a cell boundary is maintained in the calculations.
-// If the target is offset by 7 from a cell boundary, all counts will be offset by 7 within the neighboring cells.
-static inline int count_neighbor_values(int target_cell, int cell_dim, int row_dim, int col_dim, unsigned short *data, unsigned short *result_data, unsigned short* west_ghost_col, unsigned short* east_ghost_col) {
-    int count = 0;
-    int col_len = col_dim * cell_dim;
-    int pos_in_col = target_cell % col_len;
-
-
-    if (pos_in_col > cell_dim && pos_in_col < col_len - cell_dim) {
-        count += data[target_cell - cell_dim] + data[target_cell + cell_dim];
-
-        if (target_cell >= col_len)
-            count += data[target_cell - col_len - cell_dim] + data[target_cell - col_len] + data[target_cell - col_len + cell_dim];
-        else if (west_ghost_col != NULL)
-            count += west_ghost_col[pos_in_col - cell_dim] + west_ghost_col[pos_in_col] + west_ghost_col[pos_in_col + cell_dim];
-
-        if (target_cell < col_len * (row_dim - 1))
-            count += data[target_cell + col_len - cell_dim] + data[target_cell + col_len] + data[target_cell + col_len + cell_dim];
-        else if (east_ghost_col != NULL)
-            count += east_ghost_col[pos_in_col - cell_dim] + east_ghost_col[pos_in_col] + east_ghost_col[pos_in_col + cell_dim];
-    }
-
-    return count;
-}
-
 int simulate_step(int cell_dim, int row_dim, int col_dim, unsigned short **data, unsigned short **result_data, unsigned short* west_ghost_col, unsigned short* east_ghost_col) {
-    int col_len = col_dim * cell_dim;
 
-    // TODO: Implement the simulation logic here
     for (int i=7; i<cell_dim * row_dim * col_dim; i+=cell_dim) {
-        if (i >= col_len * (row_dim - 1))
-            (*result_data)[i] = (*data)[i];
-        else
-            (*result_data)[i] = (*data)[i+col_len];
+        int new_pop = update_cell_population(i, cell_dim, row_dim, col_dim, *data, west_ghost_col, east_ghost_col);
+        (*result_data)[i] = new_pop;
     }
 
     swap(data, result_data);

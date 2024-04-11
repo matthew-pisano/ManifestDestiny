@@ -10,8 +10,11 @@ int main(int argc, char **argv) {
 
     int rank, num_ranks;
     unsigned short *data;
+    // The number of elements in a cell
     int cell_dim = 8;
+    // The number of elements in a row
     int row_dim = 994;
+    // The number of elements in a column
     int col_dim = 623;
     int iterations;
     char *in_filename, *out_filename;
@@ -34,15 +37,20 @@ int main(int argc, char **argv) {
     out_filename = argv[2];
     iterations = atoi(argv[3]);
 
+    int cols_per_rank = row_dim / num_ranks;
+    int read_cols = cols_per_rank;
+    if (rank == num_ranks - 1)
+        read_cols += row_dim % num_ranks;
+
     int err;
-    if ((err = load_data_mpi(in_filename, cell_dim, row_dim, col_dim, rank, num_ranks, &data))) {
+    if ((err = load_data_mpi(in_filename, cols_per_rank*rank, cell_dim, read_cols, col_dim, rank, num_ranks, &data))) {
         printf("Error: Could not load data from file %s\n", in_filename);
         return err;
     }
 
-    simulate(iterations, cell_dim, row_dim, col_dim, rank, num_ranks, &data);
+    simulate(iterations, cell_dim, read_cols, col_dim, rank, num_ranks, &data);
 
-    if ((err = save_data_mpi(out_filename, cell_dim, row_dim, col_dim, rank, num_ranks, data))) {
+    if ((err = save_data_mpi(out_filename, cols_per_rank*rank, cell_dim, read_cols, col_dim, rank, num_ranks, data))) {
         printf("Error: Could not save data to file %s\n", out_filename);
         return err;
     }

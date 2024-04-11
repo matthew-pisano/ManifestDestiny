@@ -58,14 +58,9 @@ int save_data_seq(const char *filename, int cell_dim, int row_dim, int col_dim, 
 }
 
 
-int load_data_mpi(const char *filename, int cell_dim, int row_dim, int col_dim, int rank, int num_ranks, unsigned short **data) {
+int load_data_mpi(const char *filename, int col_offset, int cell_dim, int row_dim, int col_dim, int rank, int num_ranks, unsigned short **data) {
 
-    int cols_per_rank = col_dim / num_ranks;
-    int read_cols = cols_per_rank;
-    if (rank == num_ranks - 1)
-        read_cols += col_dim % num_ranks;
-
-    *data = (unsigned short *)calloc(read_cols * cell_dim * row_dim, sizeof(unsigned short));
+    *data = (unsigned short *)calloc(row_dim * cell_dim * col_dim, sizeof(unsigned short));
     if (*data == NULL) {
         printf("Error: Could not allocate memory for data\n");
         return 1;
@@ -78,11 +73,11 @@ int load_data_mpi(const char *filename, int cell_dim, int row_dim, int col_dim, 
         printf("Error: Could not open file %s\n", filename);
         return err;
     }
-    if ((err = MPI_File_seek(file, rank * cols_per_rank * cell_dim * row_dim * sizeof(unsigned short), MPI_SEEK_SET))) {
+    if ((err = MPI_File_seek(file, col_offset * cell_dim * col_dim * sizeof(unsigned short), MPI_SEEK_SET))) {
         printf("Error: Could not seek to position in file\n");
         return err;
     }
-    if ((err = MPI_File_read(file, *data, read_cols * cell_dim * row_dim, MPI_UNSIGNED_SHORT, &status))) {
+    if ((err = MPI_File_read(file, *data, row_dim * cell_dim * col_dim, MPI_UNSIGNED_SHORT, &status))) {
         printf("Error: Could not read data from file\n");
         return err;
     }
@@ -97,12 +92,7 @@ int load_data_mpi(const char *filename, int cell_dim, int row_dim, int col_dim, 
 }
 
 
-int save_data_mpi(const char *filename, int cell_dim, int row_dim, int col_dim, int rank, int num_ranks, unsigned short *data) {
-
-    int cols_per_rank = col_dim / num_ranks;
-    int write_cols = cols_per_rank;
-    if (rank == num_ranks - 1)
-        write_cols += col_dim % num_ranks;
+int save_data_mpi(const char *filename, int col_offset, int cell_dim, int row_dim, int col_dim, int rank, int num_ranks, unsigned short *data) {
 
     MPI_File file;
     MPI_Status status;
@@ -111,11 +101,11 @@ int save_data_mpi(const char *filename, int cell_dim, int row_dim, int col_dim, 
         printf("Error: Could not open file %s\n", filename);
         return err;
     }
-    if ((err = MPI_File_seek(file, rank * cols_per_rank * cell_dim * row_dim * sizeof(unsigned short), MPI_SEEK_SET))) {
+    if ((err = MPI_File_seek(file, col_offset * cell_dim * col_dim * sizeof(unsigned short), MPI_SEEK_SET))) {
         printf("Error: Could not seek to position in file\n");
         return err;
     }
-    if ((err = MPI_File_write(file, data, write_cols * cell_dim * row_dim, MPI_UNSIGNED_SHORT, &status))) {
+    if ((err = MPI_File_write(file, data, row_dim * cell_dim * col_dim, MPI_UNSIGNED_SHORT, &status))) {
         printf("Error: Could not write data to file\n");
         return err;
     }
@@ -131,15 +121,15 @@ int save_data_mpi(const char *filename, int cell_dim, int row_dim, int col_dim, 
 
 
 int gather_data_mpi(int cell_dim, int row_dim, int col_dim, int rank, int num_ranks, unsigned short *rank_data, unsigned short *all_data) {
-
-    int cols_per_rank = col_dim / num_ranks;
-    int recvcounts[num_ranks], displs[num_ranks];
-    for (int i = 0; i < num_ranks; i++) {
-
-        int send_cols = (rank == num_ranks - 1) ? cols_per_rank + col_dim % num_ranks : cols_per_rank;
-        recvcounts[i] = send_cols * cell_dim * row_dim;
-        displs[i] = i * cols_per_rank * cell_dim * row_dim;
-    }
-
-    return MPI_Gatherv(rank_data, recvcounts[rank], MPI_UNSIGNED_SHORT, all_data, recvcounts, displs, MPI_UNSIGNED_SHORT, 0, MPI_COMM_WORLD);
+//
+//    int cols_per_rank = col_dim / num_ranks;
+//    int recvcounts[num_ranks], displs[num_ranks];
+//    for (int i = 0; i < num_ranks; i++) {
+//
+//        int send_cols = (rank == num_ranks - 1) ? cols_per_rank + col_dim % num_ranks : cols_per_rank;
+//        recvcounts[i] = send_cols * cell_dim * row_dim;
+//        displs[i] = i * cols_per_rank * cell_dim * row_dim;
+//    }
+//
+//    return MPI_Gatherv(rank_data, recvcounts[rank], MPI_UNSIGNED_SHORT, all_data, recvcounts, displs, MPI_UNSIGNED_SHORT, 0, MPI_COMM_WORLD);
 }

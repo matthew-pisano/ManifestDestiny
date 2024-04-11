@@ -4,6 +4,7 @@
 
 #include <stdlib.h>
 #include <mpi.h>
+#include <stdio.h>
 
 #define LAST_COL_TAG 0
 #define FIRST_COL_TAG 1
@@ -17,7 +18,7 @@ static inline void swap(unsigned short **a, unsigned short **b) {
 
 // Counts the values present in all eight cell neighbors.  The offset of the given target cell from a cell boundary is maintained in the calculations.
 // If the target is offset by 7 from a cell boundary, all counts will be offset by 7 within the neighboring cells.
-static inline int count_neighbors(int target_cell, int cell_dim, int row_dim, int col_dim, unsigned short *data, unsigned short *result_data, unsigned short* west_ghost_col, unsigned short* east_ghost_col) {
+static inline int count_neighbor_values(int target_cell, int cell_dim, int row_dim, int col_dim, unsigned short *data, unsigned short *result_data, unsigned short* west_ghost_col, unsigned short* east_ghost_col) {
     int count = 0;
     int col_len = col_dim * cell_dim;
     int pos_in_col = target_cell % col_len;
@@ -28,36 +29,35 @@ static inline int count_neighbors(int target_cell, int cell_dim, int row_dim, in
 
         if (target_cell >= col_len)
             count += data[target_cell - col_len - cell_dim] + data[target_cell - col_len] + data[target_cell - col_len + cell_dim];
-        else if (west_ghost_col != nullptr)
+        else if (west_ghost_col != NULL)
             count += west_ghost_col[pos_in_col - cell_dim] + west_ghost_col[pos_in_col] + west_ghost_col[pos_in_col + cell_dim];
 
         if (target_cell < col_len * (row_dim - 1))
             count += data[target_cell + col_len - cell_dim] + data[target_cell + col_len] + data[target_cell + col_len + cell_dim];
-        else if (east_ghost_col != nullptr)
+        else if (east_ghost_col != NULL)
             count += east_ghost_col[pos_in_col - cell_dim] + east_ghost_col[pos_in_col] + east_ghost_col[pos_in_col + cell_dim];
     }
 
     return count;
 }
 
-int simulate_step(int cell_dim, int row_dim, int col_dim, unsigned short *data, unsigned short *result_data, unsigned short* west_ghost_col, unsigned short* east_ghost_col) {
+int simulate_step(int cell_dim, int row_dim, int col_dim, unsigned short **data, unsigned short **result_data, unsigned short* west_ghost_col, unsigned short* east_ghost_col) {
     int col_len = col_dim * cell_dim;
 
     // TODO: Implement the simulation logic here
-    for (int i=7; i<row_dim * col_dim; i+=cell_dim) {
-        // Test to shift all cities one cell to the left
+    for (int i=7; i<cell_dim * row_dim * col_dim; i+=cell_dim) {
         if (i >= col_len * (row_dim - 1))
-            result_data[i] = data[i];
+            (*result_data)[i] = (*data)[i];
         else
-            result_data[i] = data[i+col_len];
+            (*result_data)[i] = (*data)[i+col_len];
     }
 
-    swap(&data, &result_data);
+    swap(data, result_data);
 
     return 0;
 }
 
-int simulate(int iterations, int cell_dim, int row_dim, int col_dim, int rank, int num_ranks, unsigned short *data) {
+int simulate(int iterations, int cell_dim, int row_dim, int col_dim, int rank, int num_ranks, unsigned short **data) {
 
     unsigned short *result_data = calloc(cell_dim * row_dim * col_dim, sizeof(unsigned short));
 
@@ -75,8 +75,8 @@ int simulate(int iterations, int cell_dim, int row_dim, int col_dim, int rank, i
 
         // Fill in the buffer rows with data from the current frame for sending to other ranks
         for(int i = 0; i < col_dim * cell_dim; i++) {
-            first_col[i] = data[i];
-            last_col[i] = data[col_dim * (row_dim - 1) * cell_dim + i];
+            first_col[i] = (*data)[i];
+            last_col[i] = (*data)[col_dim * (row_dim - 1) * cell_dim + i];
         }
 
         // Send ghost rows asynchronously to avoid deadlock, receive the ghost rows from other ranks asynchronously, and wait for them to finish
@@ -98,9 +98,9 @@ int simulate(int iterations, int cell_dim, int row_dim, int col_dim, int rank, i
             MPI_Wait(&recv_request, MPI_STATUS_IGNORE);
         }
 
-        simulate_step(cell_dim, row_dim, col_dim, data, result_data,
-                      (west_rank != NO_RANK) ? west_ghost_col : nullptr,
-                      (east_rank != NO_RANK) ? east_ghost_col : nullptr);
+        simulate_step(cell_dim, row_dim, col_dim, data, &result_data,
+                      (west_rank != NO_RANK) ? west_ghost_col : NULL,
+                      (east_rank != NO_RANK) ? east_ghost_col : NULL);
     }
     // Free the temporary buffers for the first and last rows
     free(first_col);

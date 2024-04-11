@@ -159,7 +159,29 @@ cities_color_map = {
     (255, 184, 183): 50000,
     (255, 255, 255): 60000,
 }
+
 cities_color_map_rev = reverse_map(cities_color_map)
+
+def get_best_population(population: int):
+
+    pop_values = list(cities_color_map.values())
+
+    if population == pop_values[0]:
+        return cities_color_map_rev[pop_values[1]]
+    if population >= pop_values[-1]:
+        return cities_color_map_rev[pop_values[-1]]
+
+    for i in range(len(pop_values)-1):
+
+        if pop_values[i] <= population < pop_values[i+1]:
+            # Give whichever is closest
+            if population - pop_values[i] < pop_values[i+1] - population:
+                return cities_color_map_rev[pop_values[i]]
+            else:
+                return cities_color_map_rev[pop_values[i+1]]
+
+    raise ValueError(f"Population {population} not found in population color map")
+
 
 # Number of features per cell
 CELL_FEATURES = 8
@@ -174,7 +196,7 @@ def import_array(image_data: np.ndarray, out_file: str):
         for x in range(image_data.shape[0]):
 
             alpha = 255 if image_data[x, y][7] != 0 else 0
-            output_img[y, x] = np.asarray(list(cities_color_map_rev[image_data[x, y][7]][::-1]) + [alpha])
+            output_img[y, x] = np.asarray(list(get_best_population(image_data[x, y][7])[::-1]) + [alpha])
 
             pbar.update(1)
             progress += 1

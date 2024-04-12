@@ -46,99 +46,72 @@ static inline int count_neighbor_values(int target_index, int radius, struct Dat
 }
 
 
+unsigned short waterMod = 5;
+unsigned short slopeMod = 2;
+unsigned short popMod = 10;
+unsigned short tempMod_ext = 5;
+unsigned short tempMod_mid = 3;
+unsigned short rainMod = 5;
 int calc_cell_population(int target_cell, struct DataDims data_dims, struct GhostCols ghost_cols, unsigned short *data) {
-    return data[target_cell + 7];
-    //return data[target_cell + 7] + count_neighbor_values(target_cell+7, 4, data_dims, ghost_cols, data);
+
+    //chance is the chance that the population of this cell increases
+    short chance = 0;
+
+    //get all neighbor information
+    int nGradient = count_neighbor_values(target_cell+1, 2, data_dims, ghost_cols, data);
+    int nWater = count_neighbor_values(target_index+2, 2, data_dims, ghost_cols, data);
+    int nRain = count_neighbor_values(target_cell+4, 2, data_dims, ghost_cols, data);
+    int nResource = count_neighbor_values(target_cell+5, 2, data_dims, ghost_cols, data);
+    int nPop = count_neighbor_values(target_cell+7, 2, data_dims, ghost_cols, data);
+    
+    //don't settle cities inside of oceans or lakes
+    if(data[target_cell+2] != 0){
+        return 0;
+    }
+
+    //do settle cities that are next to oceans or lakes, but are not islands.
+    if (nWater > 0 && nWater < 8){
+        chance += waterMod;
+    }
+
+    //don't settle cities on the side of cliffs
+    if(neighborSlopes > maxSlope){
+        chance -= slopeMod;
+    }
+
+    //do settle cities that are near other people.
+    short pop = data[target_cell + 7];
+    if(nPop > 1 || pop > 1){
+        chance += popMod;
+    }
+
+    //don't settle in super hot or super cold places
+    short temp = data[target_cell+3]
+    if(temp > 10 || temp < 0){
+        chance -= tempMod_ext;
+    }
+    else if (temp > 8 || temp < 2){
+        chance -= tempMod_mid;
+    }
+
+    //do settle in places with resources or places near resources
+    short resources = data[target_cell+5];
+    chance += resources + nResource;
+
+    //do not settle the Amazon or the Sahara
+    short totalRain = nRain + data[target_cell+4];
+    if( totalRain < 9 || totalRain > 27){
+        chance -= rainMod;
+    }
+    
+    //if the chance is high enough to spawn, set to pop = 10.
+    if(pop == 0 && chance>0){
+        return 10;
+    }
+    //otherwise, grow accordingly.
+    if(chance > 10){
+        return (chance-10) * pop;
+    }
+    return pop;
+    
 }
-
-//TODO: Fix compiler errors with below code
-
-//int slopeThresh = 20;
-//float basePercent = 50;
-//int *slopePenalty;
-//
-//int *tempMin;
-//int *tempMax;
-//int *tempPenalty;
-//
-//int *rainMax;
-//int *rainMin;
-//int *rainPenalty;
-//
-//float waterBuff;
-
-/* short slope,
-short temp,
-short rain,
-short elevation,
-short water,
-short resources,
-short biome */
-
-
-//preData is the ghost row before
-//postData is the ghost row after
-//int rateSpot(char* d_data, char* preData, char* postData, int cell_dim, size_t x0, size_t x, size_t x2, size_t y0, size_t y1, size_t y2) {
-//    int cityChance = basePercent;
-//
-//    short slope = d_data[x];
-//    short temp = d_data[x+1];
-//    short rainfall = d_data[x+2];
-//    short elevation = d_data[x+3];
-//    short water = d_data[x+4];
-//    short[] neighborWater = [d_data[y0+x0+4], d_data[y0+x+4], d_data[y0+x2+4], d_data[y1+x0+4], d_data[y1+x2+4], d_data[y2+x0+4], d_data[y2+x+4], d_data[y2+x2+4],]
-//    short resource = d_data[x+5];
-//    short biome = d_data[x+6];
-//
-//    //being underwater is bad
-//    if(water != 0){
-//        return 0;
-//    }
-//
-//    //count the number of neighbors that are underwater. Coastline, good, peninsula fine, island questionable
-//    short neighborsUnderwater = 0;
-//    for(int i = 0; i<neighborWater.size(); i++){
-//        if(neighborWater[i] != 0){
-//            neighborsUnderwater += 1;
-//        }
-//    }
-//
-//    //add buffs accordingly
-//    if (neighborsUnderwater > 5){
-//        cityChance += *peninsulaBuff;
-//    }
-//    elif(neighborsUnderwater > 2){
-//        cityChance += *coastBuff;
-//    }
-//    elif(neighborsUnderwater > 0){
-//        cityChance += *waterBuff;
-//    }
-//
-//    //add up the elevation differences between this cell and its neighbors, if greater than slopeThresh, sub
-//    float slopeSum = 0;
-//    for(int i = 0; i<slope.size(); i++){
-//        slopeSum += abs(slope[i] - elevation);
-//    }
-//    if(slopeSum > slopeThresh){
-//        cityChance -= (slopeSum * (*slopePenalty));
-//    }
-//
-//    //very hot or very cold is bad
-//    if(temp > *tempMax || temp < *tempMin){
-//        cityChance -= *tempPenalty;
-//    }
-//
-//    //rainforest and desert are bad
-//    if(rain > *rainMax || rain < *rainMin){
-//        cityChance -= *rainPenalty;
-//    }
-//
-//    //resources good
-//    for(int r = 0; r<resources.size(); r++){
-//        cityChance += resourceMap(resources[r]);
-//    }
-//
-//
-//    return cityChance;
-//
-//}

@@ -39,7 +39,7 @@ int main(int argc, char **argv) {
         return err;
     }
 
-    printf("Loaded data dimensions: %d x %d x %d\n", data_dims.row_dim, data_dims.col_dim, data_dims.cell_dim);
+    // printf("Loaded data dimensions: %d x %d x %d\n", data_dims.row_dim, data_dims.col_dim, data_dims.cell_dim);
 
     int cols_per_rank = data_dims.row_dim / num_ranks;
     int read_cols = cols_per_rank;
@@ -55,6 +55,9 @@ int main(int argc, char **argv) {
     }
 
     simulate(iterations, data_dims, rank, num_ranks, &data);
+
+    // Remove the output file if it exists
+    if (rank == 0) remove(out_filename);
 
     if ((err = save_data_mpi(out_filename, cols_per_rank*rank, data_dims, data))) {
         printf("Error: Could not save data to file %s\n", out_filename);

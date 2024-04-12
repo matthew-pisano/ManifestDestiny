@@ -118,11 +118,11 @@ water_color_map_rev = reverse_map(water_color_map)
 # Distribution of industrial/precious resources
 resource_color_map = {
     (255, 255, 255): 0,  # Nothing
-    (51, 51, 51): 1,  # Best coal
+    (138, 138, 138): 1,  # Low coal
     (92, 92, 92): 2,  # Medium coal
-    (138, 138, 138): 3,  # Low coal
-    (238, 237, 0): 4,  # Gold
-    (168, 156, 103): 5,  # Iron
+    (51, 51, 51): 3,  # Best coal
+    (168, 156, 103): 4,  # Iron
+    (238, 237, 0): 5,  # Gold
 }
 resource_color_map_rev = reverse_map(resource_color_map)
 

@@ -46,27 +46,31 @@ int main(int argc, char **argv) {
     if (rank == num_ranks - 1)
         read_cols += data_dims.row_dim % num_ranks;
 
-    // Reset the number of columns to read to the number of columns for this rank
-    data_dims.row_dim = read_cols;
+    struct DataDims data_dims_local = data_dims;
+    data_dims_local.row_dim = read_cols;
 
-    if ((err = load_data_mpi(in_filename, cols_per_rank*rank, data_dims, &data))) {
+    if ((err = load_data_mpi(in_filename, cols_per_rank*rank, data_dims_local, &data))) {
         printf("Error: Could not load data from file %s\n", in_filename);
         return err;
     }
 
-    simulate(iterations, data_dims, rank, num_ranks, &data);
+    simulate(iterations, data_dims_local, rank, num_ranks, &data);
 
     // Remove the output file if it exists
-    if (rank == 0) remove(out_filename);
+    if (rank == 0 && (err = remove(out_filename))) {
+        printf("Error: Could not remove file %s\n", out_filename);
+        return err;
+    }
 
-    if ((err = save_data_mpi(out_filename, cols_per_rank*rank, data_dims, data))) {
+    if ((err = save_data_mpi(out_filename, cols_per_rank*rank, data_dims_local, data))) {
         printf("Error: Could not save data to file %s\n", out_filename);
         return err;
     }
 
     MPI_Barrier(MPI_COMM_WORLD);
 
-    if (rank == 0 && (err = save_data_dims_mpi(out_filename, data_dims))) {
+    // Append the data dimensions to the end of the file so it matches the input file
+    if ((err = save_data_dims_mpi(out_filename, data_dims))) {
         printf("Error: Could not save data dimensions to file %s\n", out_filename);
         return err;
     }

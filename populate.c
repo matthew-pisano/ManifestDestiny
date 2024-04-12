@@ -48,7 +48,7 @@ static inline int count_neighbor_values(int target_index, int radius, struct Dat
 
 int calc_cell_population(int target_cell, struct DataDims data_dims, struct GhostCols ghost_cols, unsigned short *data) {
     return data[target_cell + 7];
-    //return data[target_cell + 7] + count_neighbor_values(target_cell+7, 2, data_dims, ghost_cols, data);
+    //return data[target_cell + 7] + count_neighbor_values(target_cell+7, 4, data_dims, ghost_cols, data);
 }
 
 //TODO: Fix compiler errors with below code

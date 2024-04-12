@@ -11,12 +11,6 @@ int main(int argc, char **argv) {
 
     int rank, num_ranks;
     unsigned short *data;
-    // The number of elements in a cell
-    int cell_dim = 8;
-    // The number of elements in a row
-    int row_dim = 994;
-    // The number of elements in a column
-    int col_dim = 623;
     int iterations;
     char *in_filename, *out_filename;
 
@@ -38,14 +32,23 @@ int main(int argc, char **argv) {
     out_filename = argv[2];
     iterations = atoi(argv[3]);
 
-    int cols_per_rank = row_dim / num_ranks;
+    struct DataDims data_dims;
+    int err;
+    if ((err = load_data_dims_mpi(in_filename, &data_dims))) {
+        printf("Error: Could not load data dimensions from file %s\n", in_filename);
+        return err;
+    }
+
+    printf("Loaded data dimensions: %d x %d x %d\n", data_dims.row_dim, data_dims.col_dim, data_dims.cell_dim);
+
+    int cols_per_rank = data_dims.row_dim / num_ranks;
     int read_cols = cols_per_rank;
     if (rank == num_ranks - 1)
-        read_cols += row_dim % num_ranks;
+        read_cols += data_dims.row_dim % num_ranks;
 
-    struct DataDims data_dims = {cell_dim, read_cols, col_dim};
+    // Reset the number of columns to read to the number of columns for this rank
+    data_dims.row_dim = read_cols;
 
-    int err;
     if ((err = load_data_mpi(in_filename, cols_per_rank*rank, data_dims, &data))) {
         printf("Error: Could not load data from file %s\n", in_filename);
         return err;
@@ -55,6 +58,13 @@ int main(int argc, char **argv) {
 
     if ((err = save_data_mpi(out_filename, cols_per_rank*rank, data_dims, data))) {
         printf("Error: Could not save data to file %s\n", out_filename);
+        return err;
+    }
+
+    MPI_Barrier(MPI_COMM_WORLD);
+
+    if (rank == 0 && (err = save_data_dims_mpi(out_filename, data_dims))) {
+        printf("Error: Could not save data dimensions to file %s\n", out_filename);
         return err;
     }
 

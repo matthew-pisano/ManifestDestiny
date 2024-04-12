@@ -187,7 +187,13 @@ def get_best_population(population: int):
 CELL_FEATURES = 8
 
 
-def import_array(image_data: np.ndarray, out_file: str):
+def import_array(in_file: str, out_file: str):
+    raw_data = np.fromfile(in_file, dtype=np.ushort)
+    dimensions = raw_data[-3:]
+    print("Read data of dimensions: ", dimensions)
+    image_data = raw_data[:-3]
+    image_data = image_data.reshape(tuple(dimensions))
+
     output_img = np.zeros((image_data.shape[1], image_data.shape[0], 4), np.uint8)
 
     pbar = tqdm(total=image_data.shape[1] * image_data.shape[0])
@@ -206,16 +212,18 @@ def import_array(image_data: np.ndarray, out_file: str):
     cv2.imwrite(out_file, output_img)
 
 
-def export_array(city_map: str):
-    elev_img = cv2.cvtColor(cv2.imread("img/usa_topo_iso.png"), cv2.COLOR_BGR2RGB)
-    water_img = cv2.cvtColor(cv2.imread("img/usa_water_iso.png"), cv2.COLOR_BGR2RGB)
-    temp_img = cv2.cvtColor(cv2.imread("img/usa_temp_iso.png"), cv2.COLOR_BGR2RGB)
-    precip_img = cv2.cvtColor(cv2.imread("img/usa_precip_iso.png"), cv2.COLOR_BGR2RGB)
-    resource_img = cv2.cvtColor(cv2.imread("img/usa_resource_iso.png"), cv2.COLOR_BGR2RGB)
-    biome_img = cv2.cvtColor(cv2.imread("img/usa_biome_iso.png"), cv2.COLOR_BGR2RGB)
+def export_array(city_map: str, out_file: str, resolution_scale = 1):
+    elev_img = cv2.cvtColor(cv2.imread("scripts/img/usa_topo_iso.png"), cv2.COLOR_BGR2RGB)
+    water_img = cv2.cvtColor(cv2.imread("scripts/img/usa_water_iso.png"), cv2.COLOR_BGR2RGB)
+    temp_img = cv2.cvtColor(cv2.imread("scripts/img/usa_temp_iso.png"), cv2.COLOR_BGR2RGB)
+    precip_img = cv2.cvtColor(cv2.imread("scripts/img/usa_precip_iso.png"), cv2.COLOR_BGR2RGB)
+    resource_img = cv2.cvtColor(cv2.imread("scripts/img/usa_resource_iso.png"), cv2.COLOR_BGR2RGB)
+    biome_img = cv2.cvtColor(cv2.imread("scripts/img/usa_biome_iso.png"), cv2.COLOR_BGR2RGB)
     city_img = cv2.cvtColor(cv2.imread(city_map), cv2.COLOR_BGR2RGB)
 
-    feature_matrix = np.zeros((elev_img.shape[1], elev_img.shape[0], CELL_FEATURES))
+    col_dim = elev_img.shape[0]*resolution_scale
+    row_dim = elev_img.shape[1]*resolution_scale
+    feature_matrix = np.zeros((row_dim, col_dim, CELL_FEATURES))
 
     pbar = tqdm(total=elev_img.shape[0]*elev_img.shape[1])
     progress = 0
@@ -256,31 +264,43 @@ def export_array(city_map: str):
 
                 scored_diff = max(abs(y_diff), abs(x_diff))
                 feet_per_pixel = 15632
-                gradient = scored_diff / feet_per_pixel
+                # Change in elevation for every 50 feet in distance
+                gradient = (50 * scored_diff) // feet_per_pixel
 
-            feature_matrix[x, y][0] = elevation
-            feature_matrix[x, y][1] = gradient
-            feature_matrix[x, y][2] = water_score
-            feature_matrix[x, y][3] = temp_score
-            feature_matrix[x, y][4] = precip_score
-            feature_matrix[x, y][5] = resource_type
-            feature_matrix[x, y][6] = biome_type
-            feature_matrix[x, y][7] = population
+            for x_offset in range(resolution_scale):
+                for y_offset in range(resolution_scale):
+                    scaled_x = x * resolution_scale + x_offset
+                    scaled_y = y * resolution_scale + y_offset
+
+                    feature_matrix[scaled_x, scaled_y][0] = elevation
+                    feature_matrix[scaled_x, scaled_y][1] = gradient
+                    feature_matrix[scaled_x, scaled_y][2] = water_score
+                    feature_matrix[scaled_x, scaled_y][3] = temp_score
+                    feature_matrix[scaled_x, scaled_y][4] = precip_score
+                    feature_matrix[scaled_x, scaled_y][5] = resource_type
+                    feature_matrix[scaled_x, scaled_y][6] = biome_type
+                    feature_matrix[scaled_x, scaled_y][7] = population
 
             pbar.update(1)
             progress += 1
 
     pbar.close()
 
-    return feature_matrix
+    feature_matrix.astype(np.ushort).tofile(out_file)
+
+    # Append the dimensions to the file
+    with open(out_file, "ab") as file:
+        dim_bytes = np.array([row_dim, col_dim, CELL_FEATURES], np.ushort).tobytes()
+        file.write(dim_bytes)
 
 
 def main():
 
     parser = argparse.ArgumentParser()
     parser.add_argument("action", choices=["import", "export"], help="Whether to import an array to make an image or export an image into an array")
-    parser.add_argument("-i", "--input", help="The array or city map to import")
-    parser.add_argument("-o", "--output", help="The array or image to export")
+    parser.add_argument("input", help="The array or city map to import")
+    parser.add_argument("output", help="The array or image to export")
+    parser.add_argument("--resolution_scale", type=int, default=1, help="The scale to increase the resolution of the output array")
     args = parser.parse_args()
 
     if args.action == "import":
@@ -289,8 +309,7 @@ def main():
         if args.output is None:
             raise ValueError("Must provide output image to create")
 
-        image_data = np.fromfile(args.input, dtype=np.ushort).reshape((994, 623, CELL_FEATURES))
-        import_array(image_data, args.output)
+        import_array(args.input, args.output)
 
     elif args.action == "export":
         if args.input is None:
@@ -298,8 +317,9 @@ def main():
         if args.output is None:
             raise ValueError("Must provide output array to create")
 
-        feature_matrix = export_array(args.input)
-        feature_matrix.astype(np.ushort).tofile(args.output)
+        print("Using resolution scale: ", args.resolution_scale)
+
+        export_array(args.input, args.output, resolution_scale=args.resolution_scale)
 
 
 if __name__ == "__main__":

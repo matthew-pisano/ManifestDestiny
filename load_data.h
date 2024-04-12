@@ -26,6 +26,15 @@ int load_data_seq(const char *filename, struct DataDims data_dims, unsigned shor
  */
 int save_data_seq(const char *filename, struct DataDims data_dims, unsigned short *data);
 
+
+/**
+ * Load the dimensions of the data from a file
+ * @param filename The name of the file to load
+ * @param data_dims A pointer to the struct to load the dimensions into
+ * @return Zero on success, non-zero on failure
+ */
+int load_data_dims_mpi(const char *filename, struct DataDims* data_dims);
+
 /**
  * Load data from a file into a buffer using MPI parallel I/O
  * @param filename The name of the file to load
@@ -35,6 +44,15 @@ int save_data_seq(const char *filename, struct DataDims data_dims, unsigned shor
  * @return Zero on success, non-zero on failure
  */
 int load_data_mpi(const char *filename, int col_offset, struct DataDims data_dims, unsigned short **data);
+
+
+/**
+ * Save the dimensions of the data to the end of the file
+ * @param filename The name of the file to save to
+ * @param data_dims The dimensions of the data to save
+ * @return Zero on success, non-zero on failure
+ */
+int save_data_dims_mpi(const char *filename, struct DataDims data_dims);
 
 
 /**

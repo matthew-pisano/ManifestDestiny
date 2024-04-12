@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
-#include "populate.h"
+#include "../include/populate.h"
 
 
 /**
@@ -46,20 +46,24 @@ static inline int count_neighbor_values(int target_index, int radius, struct Dat
 }
 
 
-unsigned short waterMod = 5;
-unsigned short slopeMod = 2;
-unsigned short popMod = 10;
-unsigned short tempMod_ext = 5;
-unsigned short tempMod_mid = 3;
-unsigned short rainMod = 5;
+
 int calc_cell_population(int target_cell, struct DataDims data_dims, struct GhostCols ghost_cols, unsigned short *data) {
+
+    unsigned short waterMod = 5;
+    unsigned short slopeMod = 2;
+    unsigned short popMod = 10;
+    unsigned short tempMod_ext = 5;
+    unsigned short tempMod_mid = 3;
+    unsigned short rainMod = 5;
+
+    unsigned short maxSlope = 5;
 
     //chance is the chance that the population of this cell increases
     short chance = 0;
 
     //get all neighbor information
     int nGradient = count_neighbor_values(target_cell+1, 2, data_dims, ghost_cols, data);
-    int nWater = count_neighbor_values(target_index+2, 2, data_dims, ghost_cols, data);
+    int nWater = count_neighbor_values(target_cell+2, 2, data_dims, ghost_cols, data);
     int nRain = count_neighbor_values(target_cell+4, 2, data_dims, ghost_cols, data);
     int nResource = count_neighbor_values(target_cell+5, 2, data_dims, ghost_cols, data);
     int nPop = count_neighbor_values(target_cell+7, 2, data_dims, ghost_cols, data);
@@ -75,7 +79,7 @@ int calc_cell_population(int target_cell, struct DataDims data_dims, struct Ghos
     }
 
     //don't settle cities on the side of cliffs
-    if(neighborSlopes > maxSlope){
+    if(nGradient > maxSlope){
         chance -= slopeMod;
     }
 
@@ -86,7 +90,7 @@ int calc_cell_population(int target_cell, struct DataDims data_dims, struct Ghos
     }
 
     //don't settle in super hot or super cold places
-    short temp = data[target_cell+3]
+    short temp = data[target_cell+3];
     if(temp > 10 || temp < 0){
         chance -= tempMod_ext;
     }

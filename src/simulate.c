@@ -6,8 +6,8 @@
 #include <mpi.h>
 #include <stdio.h>
 
-#include "simulate.h"
-#include "populate.h"
+#include "../include/simulate.h"
+#include "../include/populate.h"
 
 #define LAST_COL_TAG 0
 #define FIRST_COL_TAG 1

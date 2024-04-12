@@ -3,9 +3,9 @@
 #include <mpi.h>
 #include <unistd.h>
 
-#include "load_data.h"
-#include "simulate.h"
-#include "data_rep.h"
+#include "../include/load_data.h"
+#include "../include/simulate.h"
+#include "../include/data_rep.h"
 
 
 int main(int argc, char **argv) {
@@ -70,7 +70,7 @@ int main(int argc, char **argv) {
 
     MPI_Barrier(MPI_COMM_WORLD);
 
-    // Append the data dimensions to the end of the file so it matches the input file
+    // Append the data dimensions to the end of the file, so it matches the input file
     if ((err = save_data_dims_mpi(out_filename, data_dims))) {
         printf("Error: Could not save data dimensions to file %s\n", out_filename);
         return err;

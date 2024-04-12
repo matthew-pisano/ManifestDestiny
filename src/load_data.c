@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include <mpi.h>
 
-#include "load_data.h"
+#include "../include/load_data.h"
 
 // NOTE: Data is flattened!  If mapped to an x,y coordinate system is in column-major order
 // Each cell is composed of several features, multiply by cell_dim to get the index of the next cell

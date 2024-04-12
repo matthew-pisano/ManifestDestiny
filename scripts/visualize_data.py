@@ -6,6 +6,12 @@ import numpy as np
 import argparse
 
 
+"""Swaps the keys and values of a dict
+
+Args:
+    to_reverse: The dict to reverse
+Returns:
+    A new dict with the keys and values swapped"""
 def reverse_map(to_reverse: dict):
     return {v: k for k, v in to_reverse.items()}
 
@@ -162,12 +168,21 @@ cities_color_map = {
 
 cities_color_map_rev = reverse_map(cities_color_map)
 
+
+"""Gets the best population color for a given population
+
+Args:
+    population: The population to get the color for
+Returns:
+    The color for the given population"""
 def get_best_population(population: int):
 
     pop_values = list(cities_color_map.values())
 
-    if population == pop_values[0]:
+    # If the population is less than the smallest value, return the smallest value
+    if 0 < population < pop_values[1]:
         return cities_color_map_rev[pop_values[1]]
+    # If the population is greater than the largest value, return the largest value
     if population >= pop_values[-1]:
         return cities_color_map_rev[pop_values[-1]]
 
@@ -187,13 +202,20 @@ def get_best_population(population: int):
 CELL_FEATURES = 8
 
 
+"""Imports an array from a file and creates an image
+
+Args:
+    in_file: The file to read the array from
+    out_file: The file to write the image to"""
 def import_array(in_file: str, out_file: str):
     raw_data = np.fromfile(in_file, dtype=np.ushort)
+    # Split the raw data into the image data and the dimensions
     dimensions = raw_data[-3:]
     print("Read data of dimensions: ", dimensions)
     image_data = raw_data[:-3]
     image_data = image_data.reshape(tuple(dimensions))
 
+    # Create blank image
     output_img = np.zeros((image_data.shape[1], image_data.shape[0], 4), np.uint8)
 
     pbar = tqdm(total=image_data.shape[1] * image_data.shape[0])
@@ -201,6 +223,7 @@ def import_array(in_file: str, out_file: str):
     for y in range(image_data.shape[1]):
         for x in range(image_data.shape[0]):
 
+            # Assign each pixel the best color, based on its population
             alpha = 255 if image_data[x, y][7] != 0 else 0
             output_img[y, x] = np.asarray(list(get_best_population(image_data[x, y][7])[::-1]) + [alpha])
 
@@ -212,6 +235,11 @@ def import_array(in_file: str, out_file: str):
     cv2.imwrite(out_file, output_img)
 
 
+"""Exports an image to an array
+Args:
+    city_map: The city map to export
+    out_file: The file to write the array to
+    resolution_scale: The scale to increase the resolution of the output array"""
 def export_array(city_map: str, out_file: str, resolution_scale = 1):
     elev_img = cv2.cvtColor(cv2.imread("data/img/usa_topo_iso.png"), cv2.COLOR_BGR2RGB)
     water_img = cv2.cvtColor(cv2.imread("data/img/usa_water_iso.png"), cv2.COLOR_BGR2RGB)
@@ -229,6 +257,7 @@ def export_array(city_map: str, out_file: str, resolution_scale = 1):
     progress = 0
     for y in range(elev_img.shape[0]):
         for x in range(elev_img.shape[1]):
+
             elevation = list(topo_color_map.values())[math.ceil(elev_img[y, x][0]/5.5)]
             if elevation is None:
                 raise ValueError(f"Color {elev_img[y, x]} not found in elevation color map @ ({x}, {y})")
@@ -257,6 +286,7 @@ def export_array(city_map: str, out_file: str, resolution_scale = 1):
             if population is None:
                 raise ValueError(f"Color {city_img[y, x]} not found in city color map @ ({x}, {y})")
 
+            # Calculate the gradient of the current pixel
             gradient = 0
             if 0 < y < elev_img.shape[0] - 1 and 0 < x < elev_img.shape[1] - 1:
                 y_diff = list(topo_color_map.values())[int(elev_img[y-1, x][0]/5.5)] - list(topo_color_map.values())[int(elev_img[y+1, x][0]/5.5)]
@@ -267,6 +297,7 @@ def export_array(city_map: str, out_file: str, resolution_scale = 1):
                 # Change in elevation for every 50 feet in distance
                 gradient = (50 * scored_diff) // feet_per_pixel
 
+            # Duplicate the pixel for the resolution scale if it is greater than 1
             for x_offset in range(resolution_scale):
                 for y_offset in range(resolution_scale):
                     scaled_x = x * resolution_scale + x_offset

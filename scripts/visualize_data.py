@@ -213,12 +213,12 @@ def import_array(in_file: str, out_file: str):
 
 
 def export_array(city_map: str, out_file: str, resolution_scale = 1):
-    elev_img = cv2.cvtColor(cv2.imread("scripts/img/usa_topo_iso.png"), cv2.COLOR_BGR2RGB)
-    water_img = cv2.cvtColor(cv2.imread("scripts/img/usa_water_iso.png"), cv2.COLOR_BGR2RGB)
-    temp_img = cv2.cvtColor(cv2.imread("scripts/img/usa_temp_iso.png"), cv2.COLOR_BGR2RGB)
-    precip_img = cv2.cvtColor(cv2.imread("scripts/img/usa_precip_iso.png"), cv2.COLOR_BGR2RGB)
-    resource_img = cv2.cvtColor(cv2.imread("scripts/img/usa_resource_iso.png"), cv2.COLOR_BGR2RGB)
-    biome_img = cv2.cvtColor(cv2.imread("scripts/img/usa_biome_iso.png"), cv2.COLOR_BGR2RGB)
+    elev_img = cv2.cvtColor(cv2.imread("data/img/usa_topo_iso.png"), cv2.COLOR_BGR2RGB)
+    water_img = cv2.cvtColor(cv2.imread("data/img/usa_water_iso.png"), cv2.COLOR_BGR2RGB)
+    temp_img = cv2.cvtColor(cv2.imread("data/img/usa_temp_iso.png"), cv2.COLOR_BGR2RGB)
+    precip_img = cv2.cvtColor(cv2.imread("data/img/usa_precip_iso.png"), cv2.COLOR_BGR2RGB)
+    resource_img = cv2.cvtColor(cv2.imread("data/img/usa_resource_iso.png"), cv2.COLOR_BGR2RGB)
+    biome_img = cv2.cvtColor(cv2.imread("data/img/usa_biome_iso.png"), cv2.COLOR_BGR2RGB)
     city_img = cv2.cvtColor(cv2.imread(city_map), cv2.COLOR_BGR2RGB)
 
     col_dim = elev_img.shape[0]*resolution_scale

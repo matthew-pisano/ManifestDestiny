@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <mpi.h>
+#include <unistd.h>
 
 #include "load_data.h"
 #include "simulate.h"
@@ -57,7 +58,7 @@ int main(int argc, char **argv) {
     simulate(iterations, data_dims_local, rank, num_ranks, &data);
 
     // Remove the output file if it exists
-    if (rank == 0 && (err = remove(out_filename))) {
+    if (rank == 0 && access(out_filename, F_OK) == 0 && (err = remove(out_filename))) {
         printf("Error: Could not remove file %s\n", out_filename);
         return err;
     }

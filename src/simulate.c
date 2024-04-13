@@ -21,20 +21,16 @@ static inline void swap(unsigned short **a, unsigned short **b) {
 }
 
 
-int simulate_step(struct DataDims data_dims, struct GhostCols ghost_cols, unsigned short **data, unsigned short **result_data) {
+void simulate_step(struct DataDims data_dims, struct GhostCols ghost_cols, unsigned short *data, unsigned short *result_data) {
 
     for (int i=0; i<data_dims.cell_dim * data_dims.row_dim * data_dims.col_dim; i+=data_dims.cell_dim) {
-        unsigned short new_pop = calc_cell_population(i, data_dims, ghost_cols, *data);
-        (*result_data)[i+7] = new_pop;
+        unsigned short new_pop = calc_cell_population(i, data_dims, ghost_cols, data);
+        result_data[i+7] = new_pop;
     }
-
-    swap(data, result_data);
-
-    return 0;
 }
 
 
-int simulate(int iterations, struct DataDims data_dims, int rank, int num_ranks, unsigned short **data) {
+void simulate(int iterations, struct DataDims data_dims, int rank, int num_ranks, unsigned short **data) {
 
     unsigned short *result_data = calloc(data_dims.cell_dim * data_dims.row_dim * data_dims.col_dim, sizeof(unsigned short));
 
@@ -78,7 +74,8 @@ int simulate(int iterations, struct DataDims data_dims, int rank, int num_ranks,
         struct GhostCols ghost_cols = {(west_rank != NO_RANK) ? west_ghost_col : NULL,
                                        (east_rank != NO_RANK) ? east_ghost_col : NULL};
 
-        simulate_step(data_dims, ghost_cols, data, &result_data);
+        simulate_step(data_dims, ghost_cols, *data, result_data);
+        swap(data, &result_data);
     }
     // Free the temporary buffers for the first and last rows
     free(first_col);
@@ -86,6 +83,4 @@ int simulate(int iterations, struct DataDims data_dims, int rank, int num_ranks,
     free(west_ghost_col);
     free(east_ghost_col);
     free(result_data);
-
-  return 0;
 }

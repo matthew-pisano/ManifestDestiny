@@ -9,22 +9,14 @@
 #include<cuda.h>
 #include<cuda_runtime.h>
 
-// Expose CUDA functions to the MPI code
-extern "C" {
-    bool HL_kernelLaunch(int rank, unsigned char** d_data, unsigned char** d_resultData,
-                         unsigned char** preData, unsigned char** postData,
-                         size_t worldWidth, size_t worldHeight, ushort threadsCount);
-
-    void cudaMallocWrapper(void** ptr, size_t size);
-    void cudaFreeWrapper(void* ptr);
-}
+#include "../include/populate.h"
 
 /**
  * Use CUDA malloc to allocate memory on the device.
  * @param ptr The pointer to the memory to allocate.
  * @param size The size of the memory to allocate.
  */
-void cudaMallocWrapper(void** ptr, size_t size) {
+void cudaMallocManaged_wrapper(void** ptr, size_t size) {
     cudaMallocManaged(ptr, size);
 }
 
@@ -32,141 +24,43 @@ void cudaMallocWrapper(void** ptr, size_t size) {
  * Use CUDA free to deallocate memory on the device.
  * @param ptr The pointer to the memory to deallocate.
  */
-void cudaFreeWrapper(void* ptr) {
+void cudaFree_wrapper(void* ptr) {
     cudaFree(ptr);
 }
 
 
-/**
- * Swap the pointers of two arrays.
- * @param pA The first array.
- * @param pB The second array.
- */
-static inline void HL_swap( unsigned char **pA, unsigned char **pB) {
-  unsigned char *temp = *pA;
-  *pA = *pB;
-  *pB = temp;
-}
+__global__ void cuda_kernel(struct DataDims data_dims, struct GhostCols ghost_cols, unsigned short *data, unsigned short *result_data) {
+    // int device;
+    // cudaGetDevice(&device);
 
-
-/**
- * Count the number of alive cells in the neighborhood of a cell.
- * @param data The current state of the world.
- * @param preData The previous ghost row.
- * @param postData The next ghost row.
- * @param x0 The x coordinate of the first column of cells.
- * @param x1 The x coordinate of the second column of cells.
- * @param x2 The x coordinate of the third column of cells.
- * @param y0 The y coordinate of the first row of cells.
- * @param y1 The y coordinate of the second row of cells.
- * @param y2 The y coordinate of the third row of cells.
- * @return The number of alive cells in the neighborhood.
- */
-__device__ unsigned int HL_countAliveCells(const unsigned char* data, unsigned char* preData, unsigned char* postData,
-					   size_t x0,
-					   size_t x1,
-					   size_t x2,
-					   size_t y0,
-					   size_t y1,
-					   size_t y2) {
-
-    unsigned int topSum = 0;
-    unsigned int botSum = 0;
-
-    // If y0 does not wrap around: set the top sum normally, otherwise: set the top sum based on the previous ghost row
-    if (y0 < y1) topSum += data[x0 + y0] + data[x1 + y0] + data[x2 + y0];
-    else topSum += preData[x0] + preData[x1] + preData[x2];
-
-    // If y2 does not wrap around: set the bottom sum normally, otherwise: set the bottom sum based on the next ghost row
-    if (y2 > y1) botSum += data[x0 + y2] + data[x1 + y2] + data[x2 + y2];
-    else botSum += postData[x0] + postData[x1] + postData[x2];
-
-    // Return the final sum of the neighborhood
-    return topSum + data[x0 + y1] + data[x2 + y1] + botSum;
-}
-
-/**
- * The kernel for running HighLife in parallel on a GPU.
- * @param d_data The current state of the world.
- * @param d_resultData The next state of the world.
- * @param worldWidth The width of the world.
- * @param worldHeight The height of the world.
- */
-__global__ void HL_kernel(int rank, const unsigned char* d_data, unsigned char* d_resultData,
-                          unsigned char* preData, unsigned char* postData, size_t worldWidth, size_t worldHeight, int cell_dim) {
-    int device;
-    cudaGetDevice( &device );
-
-    // Calculate the index of the cell in the world, striding by the total number of threads in the grid
-
-    // **Use size_t type to avoid overflows when repeatedly adding**
-    // Individual variables (blockIdx.x, etc.) likely do not need to be cast to size_t, but memory is not very constrained, so it can't hurt
-    // Cast anyways for compatibility
-    for(size_t index = (size_t) blockIdx.x * (size_t) blockDim.x + (size_t) threadIdx.x;
-            index < worldWidth*worldHeight;
-            index += (size_t) blockDim.x * (size_t) gridDim.x) {
-
-
-        size_t trueWidth = worldWidth * cell_dim;
-        // Calculate the x and y coordinates of the cell based on the global index
-        size_t x = index % trueWidth;
-        size_t y = index / trueWidth;
-
-        // Calculate the surrounding cells exactly like the serial program
-        size_t y0 = ((y + worldHeight - 1) % worldHeight) * trueWidth;
-        size_t y1 = y * trueWidth;
-        size_t y2 = ((y + 1) % worldHeight) * trueWidth;
-
-        size_t x0 = (x + trueWidth - cell_dim) % trueWidth;
-        size_t x2 = (x + cell_dim) % trueWidth;
-
-        // Count the number of alive cells in the neighborhood
-        unsigned int cityChance = rateSpot(d_data, preData, postData, cell_dim, x0, x, x2, y0, y1, y2);
-        // rule B36/S23
-        // Set the next state of the cell based on the number of alive cells in the neighborhood
-        d_resultData[x + y1] = (aliveCells == 3) || (aliveCells == 6 && !d_data[x + y1])
-            || (aliveCells == 2 && d_data[x + y1]) ? 1 : 0;
+    for (size_t i = blockIdx.x * blockDim.x + threadIdx.x; i<data_dims.row_dim * data_dims.col_dim; i+=blockDim.x * gridDim.x) {
+        size_t cell_index = i * data_dims.cell_dim;
+        unsigned short new_pop = calc_cell_population(cell_index, data_dims, ghost_cols, data);
+        result_data[i+7] = new_pop;
     }
 }
 
-/**
- * Launch the kernel once for each iteration, synchronizing after each launch.
- * @param d_data The current state of the world.
- * @param d_resultData The next state of the world.
- * @param worldWidth The width of the world.
- * @param worldHeight The height of the world.
- * @param iterationsCount The number of iterations to run the algorithm.
- * @param threadsCount The number of threads to allocate to each block in the kernel.
- * @return True if the kernel was launched successfully.
- */
-bool HL_kernelLaunch(int rank, unsigned char** d_data, unsigned char** d_resultData,
-                     unsigned char** preData, unsigned char** postData,
-                     size_t worldWidth, size_t worldHeight, int cell_dim, ushort threadsCount) {
+
+void launch_kernel(int rank, int thread_count, struct DataDims data_dims, struct GhostCols ghost_cols,
+        unsigned short *data, unsigned short *result_data) {
 
     // Get the number of cuda devices and set the current device to the rank modulo the number of devices
-    cudaError_t cudaError;
-    int cudaDeviceCount;
-    if( (cudaError = cudaGetDeviceCount( &cudaDeviceCount)) != cudaSuccess ) {
-        printf(" Unable to determine cuda device count, error is %d, count is %d\n", cudaError, cudaDeviceCount );
-        exit(-1);
+    cudaError_t cuda_error;
+    int cuda_device_count;
+    if( (cuda_error = cudaGetDeviceCount( &cuda_device_count)) != cudaSuccess ) {
+        printf(" Unable to determine cuda device count, error is %d, count is %d\n", cuda_error, cudaDeviceCount );
+        exit(cuda_error);
     }
-    if( (cudaError = cudaSetDevice( rank % cudaDeviceCount )) != cudaSuccess ) {
-        printf(" Unable to have rank %d set to cuda device %d, error is %d \n", rank, (rank % cudaDeviceCount), cudaError);
-        exit(-1);
+    if( (cuda_error = cudaSetDevice( rank % cuda_device_count )) != cudaSuccess ) {
+        printf(" Unable to have rank %d set to cuda device %d, error is %d \n", rank, (rank % cuda_device_count), cuda_error);
+        exit(cuda_error);
     }
 
     // Determine how many blocks should be allocated to the kernel with a maximum of 65535
-    size_t blockCount = (worldHeight * worldWidth * cell_dim) / threadsCount + 1;
-    blockCount = blockCount > 65535 ? 65535 : blockCount;
-    // Determine the number of threads to allocate to each block in the kernel
-    size_t kernelThreads = threadsCount;
+    size_t block_count = (data_dims.row_dim * data_dims.col_dim) / thread_count + 1;
+    block_count = block_count > 65535 ? 65535 : block_count;
     // Launch the kernel with the determined block count and thread count
-    HL_kernel<<<blockCount, kernelThreads>>>(rank, *d_data, *d_resultData, *preData, *postData, worldWidth, worldHeight, cell_dim);
+    HL_kernel<<<block_count, (size_t) thread_count>>>(data_dims, ghost_cols, data, result_data);
     // Synchronize the device after each launch
     cudaDeviceSynchronize();
-
-    // Swap the pointers of the current state and the next state of the world
-    HL_swap(d_data, d_resultData);
-
-    return true;
 }

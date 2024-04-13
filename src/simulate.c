@@ -24,7 +24,7 @@ static inline void swap(unsigned short **a, unsigned short **b) {
 int simulate_step(struct DataDims data_dims, struct GhostCols ghost_cols, unsigned short **data, unsigned short **result_data) {
 
     for (int i=0; i<data_dims.cell_dim * data_dims.row_dim * data_dims.col_dim; i+=data_dims.cell_dim) {
-        int new_pop = calc_cell_population(i, data_dims, ghost_cols, *data);
+        unsigned short new_pop = calc_cell_population(i, data_dims, ghost_cols, *data);
         (*result_data)[i+7] = new_pop;
     }
 

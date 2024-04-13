@@ -1,5 +1,5 @@
 debug:
-	mpicc -g -Wall -Wextra -o bin/manifest-debug src/load_data.c src/simulate.c src/populate.c src/main.c
+	mpicc -g -Wall -Wextra -o bin/manifest-debug src/load_data.c src/simulate.c src/populate.c src/main.c -lm
 
 release:
-	mpicc -03 -Wall -Wextra -o bin/manifest src/load_data.c src/simulate.c src/populate.c src/main.c
+	mpicc -03 -Wall -Wextra -o bin/manifest src/load_data.c src/simulate.c src/populate.c src/main.c -lm

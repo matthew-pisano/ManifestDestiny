@@ -209,10 +209,13 @@ Args:
     out_file: The file to write the image to"""
 def import_array(in_file: str, out_file: str):
     raw_data = np.fromfile(in_file, dtype=np.ushort)
+
     # Split the raw data into the image data and the dimensions
     dimensions = raw_data[-3:]
     print("Read data of dimensions: ", dimensions)
     image_data = raw_data[:-3]
+    # NOTE: The data may or may not contain information other than the population.
+    # No assumptions are made about the data other than the existence of the population.
     image_data = image_data.reshape(tuple(dimensions))
 
     # Create blank image

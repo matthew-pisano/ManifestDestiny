@@ -5,6 +5,7 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <math.h>
 
 #include "../include/populate.h"
 
@@ -18,7 +19,7 @@
  * @param data The buffer containing the data
  * @return The count of the values of the neighbors
  */
-static inline int count_neighbor_values(int target_index, int radius, struct DataDims data_dims, struct GhostCols ghost_cols, unsigned short *data) {
+static inline unsigned short count_neighbor_values(int target_index, int radius, struct DataDims data_dims, struct GhostCols ghost_cols, unsigned short *data) {
     int count = 0;
     int col_len = data_dims.col_dim * data_dims.cell_dim;
     int world_len = col_len * data_dims.row_dim;
@@ -42,12 +43,13 @@ static inline int count_neighbor_values(int target_index, int radius, struct Dat
         }
     }
 
-    return count;
+    // Ensure the count is within the bounds of an unsigned short
+    return count > 65535 ? 65535 : (unsigned short) count;
 }
 
 
 
-int calc_cell_population(int target_cell, struct DataDims data_dims, struct GhostCols ghost_cols, unsigned short *data) {
+unsigned short calc_cell_population(int target_cell, struct DataDims data_dims, struct GhostCols ghost_cols, unsigned short *data) {
 
     unsigned short waterMod = 5;
     unsigned short slopeMod = 2;
@@ -59,14 +61,14 @@ int calc_cell_population(int target_cell, struct DataDims data_dims, struct Ghos
     unsigned short maxSlope = 5;
 
     //chance is the chance that the population of this cell increases
-    short chance = 0;
+    int chance = 0;
 
     //get all neighbor information
-    int nGradient = count_neighbor_values(target_cell+1, 2, data_dims, ghost_cols, data);
-    int nWater = count_neighbor_values(target_cell+2, 2, data_dims, ghost_cols, data);
-    int nRain = count_neighbor_values(target_cell+4, 2, data_dims, ghost_cols, data);
-    int nResource = count_neighbor_values(target_cell+5, 2, data_dims, ghost_cols, data);
-    int nPop = count_neighbor_values(target_cell+7, 2, data_dims, ghost_cols, data);
+    unsigned short nGradient = count_neighbor_values(target_cell+1, 2, data_dims, ghost_cols, data);
+    unsigned short nWater = count_neighbor_values(target_cell+2, 2, data_dims, ghost_cols, data);
+    unsigned short nRain = count_neighbor_values(target_cell+4, 2, data_dims, ghost_cols, data);
+    unsigned short nResource = count_neighbor_values(target_cell+5, 2, data_dims, ghost_cols, data);
+    unsigned short nPop = count_neighbor_values(target_cell+7, 2, data_dims, ghost_cols, data);
     
     //don't settle cities inside of oceans or lakes
     if(data[target_cell+2] != 0){
@@ -84,38 +86,39 @@ int calc_cell_population(int target_cell, struct DataDims data_dims, struct Ghos
     }
 
     //do settle cities that are near other people.
-    short pop = data[target_cell + 7];
+    unsigned short pop = data[target_cell + 7];
     if(nPop > 1 || pop > 1){
         chance += popMod;
     }
 
     //don't settle in super hot or super cold places
-    short temp = data[target_cell+3];
-    if(temp > 10 || temp < 0){
+    unsigned short temp = data[target_cell+3];
+    if(temp > 75 || temp < 25){
         chance -= tempMod_ext;
     }
-    else if (temp > 8 || temp < 2){
+    else if (temp > 80 || temp < 30){
         chance -= tempMod_mid;
     }
 
     //do settle in places with resources or places near resources
-    short resources = data[target_cell+5];
+    unsigned short resources = data[target_cell+5];
     chance += resources + nResource;
 
     //do not settle the Amazon or the Sahara
-    short totalRain = nRain + data[target_cell+4];
+    unsigned short totalRain = nRain + data[target_cell+4];
     if( totalRain < 9 || totalRain > 27){
         chance -= rainMod;
     }
     
     //if the chance is high enough to spawn, set to pop = 10.
-    if(pop == 0 && chance>0){
+    if(pop == 0 && chance>0 && nPop > 0){
         return 10;
     }
     //otherwise, grow accordingly.
     if(chance > 10){
-        return (chance-10) * pop;
+        return ((unsigned short)log((double)chance)) * pop;
     }
+
     return pop;
     
 }

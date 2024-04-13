@@ -2,7 +2,7 @@
 // Created by matthew on 4/9/24.
 //
 
-#include "../include/cuda_utils.cuh"
+#include "../include/cuda_kernel.cuh"
 
 
 #include<stdio.h>
@@ -11,19 +11,12 @@
 
 #include "../include/populate.h"
 
-/**
- * Use CUDA malloc to allocate memory on the device.
- * @param ptr The pointer to the memory to allocate.
- * @param size The size of the memory to allocate.
- */
+
 void cudaMallocManaged_wrapper(void** ptr, size_t size) {
     cudaMallocManaged(ptr, size);
 }
 
-/**
- * Use CUDA free to deallocate memory on the device.
- * @param ptr The pointer to the memory to deallocate.
- */
+
 void cudaFree_wrapper(void* ptr) {
     cudaFree(ptr);
 }
@@ -48,7 +41,7 @@ void launch_kernel(int rank, int thread_count, struct DataDims data_dims, struct
     cudaError_t cuda_error;
     int cuda_device_count;
     if( (cuda_error = cudaGetDeviceCount( &cuda_device_count)) != cudaSuccess ) {
-        printf(" Unable to determine cuda device count, error is %d, count is %d\n", cuda_error, cudaDeviceCount );
+        printf(" Unable to determine cuda device count, error is %d, count is %d\n", cuda_error, cuda_device_count );
         exit(cuda_error);
     }
     if( (cuda_error = cudaSetDevice( rank % cuda_device_count )) != cudaSuccess ) {
@@ -60,7 +53,7 @@ void launch_kernel(int rank, int thread_count, struct DataDims data_dims, struct
     size_t block_count = (data_dims.row_dim * data_dims.col_dim) / thread_count + 1;
     block_count = block_count > 65535 ? 65535 : block_count;
     // Launch the kernel with the determined block count and thread count
-    HL_kernel<<<block_count, (size_t) thread_count>>>(data_dims, ghost_cols, data, result_data);
+    cuda_kernel<<<block_count, (size_t) thread_count>>>(data_dims, ghost_cols, data, result_data);
     // Synchronize the device after each launch
     cudaDeviceSynchronize();
 }

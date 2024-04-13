@@ -2,11 +2,12 @@
 // Created by matthew on 4/9/24.
 //
 
+#include "../include/simulate.h"
+
 #include <stdlib.h>
 #include <mpi.h>
 #include <stdio.h>
 
-#include "../include/simulate.h"
 #include "../include/populate.h"
 
 #define LAST_COL_TAG 0

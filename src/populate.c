@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <math.h>
+#include <stdio.h>
 
 #include "../include/populate.h"
 
@@ -51,74 +52,84 @@ static inline unsigned short count_neighbor_values(int target_index, int radius,
 
 unsigned short calc_cell_population(int target_cell, struct DataDims data_dims, struct GhostCols ghost_cols, unsigned short *data) {
 
-    unsigned short waterMod = 5;
-    unsigned short slopeMod = 2;
-    unsigned short popMod = 10;
-    unsigned short tempMod_ext = 5;
-    unsigned short tempMod_mid = 3;
-    unsigned short rainMod = 5;
-
-    unsigned short maxSlope = 5;
-
-    //chance is the chance that the population of this cell increases
-    int chance = 0;
-
-    //get all neighbor information
-    unsigned short nGradient = count_neighbor_values(target_cell+1, 2, data_dims, ghost_cols, data);
-    unsigned short nWater = count_neighbor_values(target_cell+2, 2, data_dims, ghost_cols, data);
-    unsigned short nRain = count_neighbor_values(target_cell+4, 2, data_dims, ghost_cols, data);
-    unsigned short nResource = count_neighbor_values(target_cell+5, 2, data_dims, ghost_cols, data);
-    unsigned short nPop = count_neighbor_values(target_cell+7, 2, data_dims, ghost_cols, data);
-    
-    //don't settle cities inside of oceans or lakes
-    if(data[target_cell+2] != 0){
-        return 0;
-    }
-
-    //do settle cities that are next to oceans or lakes, but are not islands.
-    if (nWater > 0 && nWater < 8){
-        chance += waterMod;
-    }
-
-    //don't settle cities on the side of cliffs
-    if(nGradient > maxSlope){
-        chance -= slopeMod;
-    }
-
-    //do settle cities that are near other people.
-    unsigned short pop = data[target_cell + 7];
-    if(nPop > 1 || pop > 1){
-        chance += popMod;
-    }
-
-    //don't settle in super hot or super cold places
+    unsigned short elev = data[target_cell];
+    unsigned short grad = data[target_cell+1];
+    unsigned short water = data[target_cell+2];
     unsigned short temp = data[target_cell+3];
-    if(temp > 75 || temp < 25){
-        chance -= tempMod_ext;
-    }
-    else if (temp > 80 || temp < 30){
-        chance -= tempMod_mid;
-    }
-
-    //do settle in places with resources or places near resources
+    unsigned short precip = data[target_cell+4];
     unsigned short resources = data[target_cell+5];
-    chance += resources + nResource;
+    unsigned short biome = data[target_cell+6];
+    unsigned short pop = data[target_cell+7];
 
-    //do not settle the Amazon or the Sahara
-    unsigned short totalRain = nRain + data[target_cell+4];
-    if( totalRain < 9 || totalRain > 27){
-        chance -= rainMod;
-    }
-    
-    //if the chance is high enough to spawn, set to pop = 10.
-    if(pop == 0 && chance>0 && nPop > 0){
-        return 10;
-    }
-    //otherwise, grow accordingly.
-    if(chance > 10){
-        return ((unsigned short)log((double)chance)) * pop;
+    int jitter = rand() % 1000;
+
+    // If the cell is water, too high, too steep, or too dry then return 0
+    if (water > 0 || elev > 10000 || grad > 30 || precip < 10) return 0;
+
+    // If the cell is too populous then return 0
+    if (pop > 40000) return pop;
+
+    // Value of a cell on a scale of 0-100
+    short cell_value = 0;
+    unsigned short nearby_water = count_neighbor_values(target_cell+2, 2, data_dims, ghost_cols, data);
+
+    cell_value += nearby_water * 2 > 40 ? 40 : nearby_water * 2;
+    cell_value += resources * 4;
+    cell_value += 10 - (elev / 1000);
+    cell_value += 10 - (grad / 3);
+    cell_value += temp > 45 && temp < 65 ? 10 : 0;
+    cell_value += precip > 30 ? 10 : 0;
+    // If the biome is a swamp
+    if (biome == 4) cell_value -= 10;
+    // If the biome is a desert
+    if (biome == 5) cell_value -= 15;
+    // Clamp the cell value to 0-100
+    if (cell_value < 0) cell_value = 0;
+
+    unsigned short nearby_population = count_neighbor_values(target_cell+7, 2, data_dims, ghost_cols, data);
+
+    // ~~~ EXPLORATION PHASE ~~~ //
+
+    // If the cell is uninhabited and the cell value is high enough, explore the cell
+    if (pop == 0) {
+        if (
+            (nearby_population > 0 && cell_value > 50) ||
+            (nearby_population > 40 && cell_value > 40) ||
+            (nearby_population > 70 && cell_value > 30) ||
+            (nearby_population > 100 && cell_value > 20)
+        // Randomly fail to explore the cell
+        ) return jitter < 900 ? 10 : 0;
+
+        return nearby_population > 0 && jitter < 50 ? 10 : 0;
     }
 
-    return pop;
-    
+    // ~~~ SETTLEMENT PHASE ~~~ //
+
+    // Get the average population of the neighbors
+    unsigned short avg_neighbor_pop = (nearby_population) / 24;
+
+    // If the cell is explored with no nearby cities
+    if (pop == 10 && avg_neighbor_pop <= 10) {
+        // Settle new city
+        if (jitter < cell_value / 60) return 11*avg_neighbor_pop;
+    }
+    // If the cell is settled with nearby cities
+    else if (pop == 10 && jitter < cell_value * 0.25) {
+        if (avg_neighbor_pop < 50) return 10 + avg_neighbor_pop;
+        else if (avg_neighbor_pop < 100 && jitter < cell_value * 0.15) return 10 + avg_neighbor_pop;
+        else if (avg_neighbor_pop < 200 && jitter < cell_value * 0.1) return 10 + avg_neighbor_pop;
+        else if (jitter < cell_value * 0.05) return 10 + avg_neighbor_pop;
+    }
+    // Skip growth if the criteria for an already settled cell are not met
+    if (pop == 10) return 10;
+
+    // ~~~ GROWTH PHASE ~~~ //
+
+    // Add a bonus to the cell value based on the average population of the neighbors, scaling with the cell value
+    unsigned short neighbor_bonus = avg_neighbor_pop > pop ? 0.1 * cell_value / 100.0 * avg_neighbor_pop : 0;
+    // Grow the cell by a factor of its population, scaling with the cell value, and add the neighbor bonus
+    float growth_factor = 1;
+    if (pop > 300) growth_factor = 0.5;
+    if (pop > 1000) growth_factor = 0.1;
+    return (1 + (cell_value / 100.0 * 0.02 * growth_factor)) * pop + growth_factor * neighbor_bonus;
 }

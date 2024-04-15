@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <mpi.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "../include/populate.h"
 
@@ -34,6 +35,7 @@ void simulate_step(struct DataDims data_dims, struct GhostCols ghost_cols, unsig
 void simulate(int iterations, struct DataDims data_dims, int rank, int num_ranks, unsigned short **data) {
 
     unsigned short *result_data = calloc(data_dims.cell_dim * data_dims.row_dim * data_dims.col_dim, sizeof(unsigned short));
+    memcpy(result_data, *data, data_dims.cell_dim * data_dims.row_dim * data_dims.col_dim * sizeof(unsigned short));
 
     unsigned short *first_col = calloc(data_dims.col_dim * data_dims.cell_dim, sizeof(unsigned short));
     unsigned short *last_col = calloc(data_dims.col_dim * data_dims.cell_dim, sizeof(unsigned short));

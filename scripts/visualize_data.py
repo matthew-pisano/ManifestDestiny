@@ -180,8 +180,10 @@ def get_best_population(population: int):
     pop_values = list(cities_color_map.values())
 
     # If the population is less than the smallest value, return the smallest value
-    if 0 < population < pop_values[1]:
+    if 0 < population <= pop_values[1]:
         return cities_color_map_rev[pop_values[1]]
+    if pop_values[1] < population <= pop_values[2]:
+        return cities_color_map_rev[pop_values[2]]
     # If the population is greater than the largest value, return the largest value
     if population >= pop_values[-1]:
         return cities_color_map_rev[pop_values[-1]]

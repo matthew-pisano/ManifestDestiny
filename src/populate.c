@@ -74,7 +74,7 @@ unsigned short calc_cell_population(int target_cell, struct DataDims data_dims, 
     unsigned short nearby_water = count_neighbor_values(target_cell+2, 2, data_dims, ghost_cols, data);
 
     cell_value += nearby_water * 2 > 40 ? 40 : nearby_water * 2;
-    cell_value += resources * 4;
+    cell_value += resources;
     cell_value += 10 - (elev / 1000);
     cell_value += 10 - (grad / 3);
     cell_value += temp > 45 && temp < 65 ? 10 : 0;
@@ -83,8 +83,12 @@ unsigned short calc_cell_population(int target_cell, struct DataDims data_dims, 
     if (biome == 4) cell_value -= 10;
     // If the biome is a desert
     if (biome == 5) cell_value -= 15;
+
     // Clamp the cell value to 0-100
     if (cell_value < 0) cell_value = 0;
+    if (cell_value > 100) cell_value = 100;
+
+    // return cell_value * 200;
 
     unsigned short nearby_population = count_neighbor_values(target_cell+7, 2, data_dims, ghost_cols, data);
 
@@ -111,14 +115,14 @@ unsigned short calc_cell_population(int target_cell, struct DataDims data_dims, 
     // If the cell is explored with no nearby cities
     if (pop == 10 && avg_neighbor_pop <= 10) {
         // Settle new city
-        if (jitter < cell_value / 60) return 11*avg_neighbor_pop;
+        if (jitter < cell_value / 30) return 21*avg_neighbor_pop;
     }
     // If the cell is settled with nearby cities
-    else if (pop == 10 && jitter < cell_value * 0.25) {
+    else if (pop == 10 && jitter < cell_value * 0.2) {
         if (avg_neighbor_pop < 50) return 10 + avg_neighbor_pop;
-        else if (avg_neighbor_pop < 100 && jitter < cell_value * 0.15) return 10 + avg_neighbor_pop;
-        else if (avg_neighbor_pop < 200 && jitter < cell_value * 0.1) return 10 + avg_neighbor_pop;
-        else if (jitter < cell_value * 0.05) return 10 + avg_neighbor_pop;
+        else if (avg_neighbor_pop < 100 && jitter < cell_value * 0.16) return 10 + avg_neighbor_pop;
+        else if (avg_neighbor_pop < 200 && jitter < cell_value * 0.12) return 10 + avg_neighbor_pop;
+        else if (jitter < cell_value * 0.09) return 10 + avg_neighbor_pop;
     }
     // Skip growth if the criteria for an already settled cell are not met
     if (pop == 10) return 10;
@@ -129,7 +133,8 @@ unsigned short calc_cell_population(int target_cell, struct DataDims data_dims, 
     unsigned short neighbor_bonus = avg_neighbor_pop > pop ? 0.1 * cell_value / 100.0 * avg_neighbor_pop : 0;
     // Grow the cell by a factor of its population, scaling with the cell value, and add the neighbor bonus
     float growth_factor = 1;
-    if (pop > 300) growth_factor = 0.5;
-    if (pop > 1000) growth_factor = 0.1;
-    return (1 + (cell_value / 100.0 * 0.02 * growth_factor)) * pop + growth_factor * neighbor_bonus;
+    if (pop + avg_neighbor_pop > 500) growth_factor = 0.2;
+    else if (pop + avg_neighbor_pop > 1000) growth_factor = 0.05;
+    else if (pop + avg_neighbor_pop > 1500) growth_factor = 0.15;
+    return (1 + (cell_value / 100.0 * 0.02 * growth_factor)) * pop + growth_factor * growth_factor * neighbor_bonus;
 }

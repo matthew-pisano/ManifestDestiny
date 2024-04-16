@@ -49,11 +49,12 @@ void save_data_body_mpi(const char *filename, int col_offset, struct DataDims da
 /**
  * Save data from a buffer and the data dimensions into a file using MPI parallel I/O
  * @param filename The name of the file to save to
+ * @param it_num The number of iterations that have been simulated at this checkpoint
  * @param rank The rank of the calling process
  * @param num_ranks The total number of processes
  * @param data_dims The dimensions (cell size, row size, and col size) of the data to save
  * @param data The buffer containing the data to save
  */
-void save_data_mpi(const char *filename, int rank, int num_ranks, struct DataDims data_dims, unsigned short *data);
+void save_data_mpi(const char *filename, int it_num, int rank, int num_ranks, struct DataDims data_dims, unsigned short *data);
 
 #endif //MANIFEST_DESTINY_LOAD_DATA_H

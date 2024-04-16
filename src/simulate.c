@@ -10,6 +10,7 @@
 #include <string.h>
 
 #include "../include/populate.h"
+#include "../include/load_data.h"
 
 #define LAST_COL_TAG 0
 #define FIRST_COL_TAG 1
@@ -32,7 +33,7 @@ void simulate_step(struct DataDims data_dims, struct GhostCols ghost_cols, unsig
 }
 
 
-void simulate(int iterations, struct DataDims data_dims, int rank, int num_ranks, unsigned short **data) {
+void simulate(const char *filename, int iterations, int checkpoint_iterations, struct DataDims data_dims, int rank, int num_ranks, unsigned short **data) {
 
     unsigned short *result_data = calloc(data_dims.cell_dim * data_dims.row_dim * data_dims.col_dim, sizeof(unsigned short));
     memcpy(result_data, *data, data_dims.cell_dim * data_dims.row_dim * data_dims.col_dim * sizeof(unsigned short));
@@ -79,6 +80,9 @@ void simulate(int iterations, struct DataDims data_dims, int rank, int num_ranks
 
         simulate_step(data_dims, ghost_cols, *data, result_data);
         swap(data, &result_data);
+
+        if (it_num > 0 && it_num < iterations-1 && it_num % checkpoint_iterations == 0)
+            save_data_mpi(filename, it_num, rank, num_ranks, data_dims, *data);
     }
     // Free the temporary buffers for the first and last rows
     free(first_col);

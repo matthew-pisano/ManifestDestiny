@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <mpi.h>
 #include <unistd.h>
+#include <string.h>
 
 #include "../include/load_data.h"
 
@@ -205,24 +206,37 @@ void save_data_body_mpi(const char *filename, int col_offset, struct DataDims da
         exit(err);
     }
 
-    printf("Wrote %lu bytes from offset %d\n", data_dims.row_dim * data_dims.cell_dim * data_dims.col_dim * sizeof(unsigned short), col_offset);
+    // printf("Wrote %lu bytes from offset %d\n", data_dims.row_dim * data_dims.cell_dim * data_dims.col_dim * sizeof(unsigned short), col_offset);
 }
 
 
-void save_data_mpi(const char *filename, int rank, int num_ranks, struct DataDims data_dims, unsigned short *data) {
+void save_data_mpi(const char *filename, int it_num, int rank, int num_ranks, struct DataDims data_dims, unsigned short *data) {
+
+    // New name in the form of <filename>_<it_num>.npy
+    int new_len = strlen(filename) + 1 + 10;
+    char *ext = strrchr(filename, '.');
+
+    char *new_filename = (char *)malloc(new_len * sizeof(char));
+    if (ext != NULL) {
+        int filename_len = ext - filename;
+        snprintf(new_filename, new_len, "%.*s_%d%s", filename_len, filename, it_num, ext);
+    }
+    else snprintf(new_filename, new_len, "%s_%d", filename, it_num);
 
     int err;
     // Remove the output file if it exists
-    if (rank == 0 && access(filename, F_OK) == 0 && (err = remove(filename))) {
-        printf("Error: Could not remove file %s\n", filename);
+    if (rank == 0 && access(new_filename, F_OK) == 0 && (err = remove(new_filename))) {
+        printf("Error: Could not remove file %s\n", new_filename);
         exit(err);
     }
 
     int col_offset = rank * (data_dims.global_row_dim / num_ranks);
-    save_data_body_mpi(filename, col_offset, data_dims, data);
+    save_data_body_mpi(new_filename, col_offset, data_dims, data);
 
     MPI_Barrier(MPI_COMM_WORLD);
 
     // Append the data dimensions to the end of the file, so it matches the input file
-    save_data_dims_mpi(filename, data_dims);
+    save_data_dims_mpi(new_filename, data_dims);
+
+    free(new_filename);
 }

@@ -10,13 +10,15 @@
 
 /**
  * Simulate population changes in the data buffer
+ * @param filename The name of the file checkpoint to save the data to
  * @param iterations The number of iterations to simulate
+ * @param checkpoint_iterations The number of iterations between checkpoints
  * @param data_dims The dimensions of the data
  * @param rank The rank of the calling process
  * @param num_ranks The total number of processes
  * @param data A pointer to the buffer containing the data to simulate
  */
-void simulate(int iterations, struct DataDims data_dims, int rank, int num_ranks, unsigned short **data);
+void simulate(const char *filename, int iterations, int checkpoint_iterations, struct DataDims data_dims, int rank, int num_ranks, unsigned short **data);
 
 
 /**

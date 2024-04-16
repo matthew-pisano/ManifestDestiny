@@ -120,7 +120,7 @@ unsigned short calc_cell_population(int target_cell, struct DataDims data_dims, 
         if (jitter < 3) return 110;
     }
     // If the cell is settled with nearby cities, expand the city with this cell
-    else if (pop == 10 && jitter < cell_value / 3) {
+    else if (pop == 10 && jitter < cell_value / 1.5) {
         if (avg_neighbor_pop < 150) return 10 + avg_neighbor_pop / 3;
         else if (avg_neighbor_pop < 300) return 10 + avg_neighbor_pop / 4;
         else if (avg_neighbor_pop < 500) return 10 + avg_neighbor_pop / 5;
@@ -134,22 +134,22 @@ unsigned short calc_cell_population(int target_cell, struct DataDims data_dims, 
     // Add a bonus to the cell value based on the average population of the neighbors, scaling with the cell value
     unsigned short neighbor_bonus = 0.03 * cell_value / 100.0 * avg_neighbor_pop;
     // Grow the cell by a factor of its population, scaling with the cell value, and add the neighbor bonus
-    float neighbor_growth_factor = 0.3;
+    float neighbor_growth_factor = 0.25;
     if (avg_neighbor_pop > 1500) neighbor_growth_factor = 0.006;
     else if (avg_neighbor_pop > 1000) neighbor_growth_factor = 0.002;
-    else if (avg_neighbor_pop > 750) neighbor_growth_factor = 0.04;
-    else if (avg_neighbor_pop > 500) neighbor_growth_factor = 0.06;
+    else if (avg_neighbor_pop > 750) neighbor_growth_factor = 0.08;
+    else if (avg_neighbor_pop > 500) neighbor_growth_factor = 0.17;
 
     float city_center_bonus = 1;
     if (pop * (1+jitter_range*0.5) > avg_neighbor_pop) city_center_bonus = 2.1;
 
     float growth_factor = city_center_bonus;
     if (pop > 3500) growth_factor *= 0.07;
-    else if (pop > 2500) growth_factor *= 0.15;
-    else if (pop > 1500) growth_factor *= 0.2;
-    else if (pop > 1000) growth_factor *= 0.22;
-    else if (pop > 750) growth_factor *= 0.25;
-    else if (pop > 500) growth_factor *= 0.4;
+    else if (pop > 2500) growth_factor *= 0.12;
+    else if (pop > 1500) growth_factor *= 0.18;
+    else if (pop > 1000) growth_factor *= 0.2;
+    else if (pop > 750) growth_factor *= 0.22;
+    else if (pop > 500) growth_factor *= 0.3;
 
     float cell_bonus = cell_value * 1.3;
     if (cell_bonus > 100) cell_bonus = 100;

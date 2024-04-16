@@ -115,9 +115,10 @@ precip_color_map_rev = reverse_map(precip_color_map)
 # Trade usefulness of water
 water_color_map = {
     (0, 0, 0): 0,  # No water
-    (0, 238, 255): 1,  # Low-trade Water
-    (0, 192, 255): 2,  # Medium-trade Water
-    (0, 158, 255): 3,  # High-trade Water
+    (43, 247, 255): 4,  # Ocean
+    (0, 238, 255): 5,  # Low-trade Water
+    (0, 192, 255): 7,  # Medium-trade Water
+    (0, 158, 255): 10,  # High-trade Water
 }
 water_color_map_rev = reverse_map(water_color_map)
 

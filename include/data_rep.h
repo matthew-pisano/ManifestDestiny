@@ -11,6 +11,8 @@ struct DataDims {
     int cell_dim;
     /// The number of cells in one row
     int row_dim;
+    /// The number of cells in one row of the global input data
+    int global_row_dim;
     /// The number of cells in one column
     int col_dim;
 };

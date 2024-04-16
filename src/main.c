@@ -34,35 +34,15 @@ int main(int argc, char **argv) {
     iterations = atoi(argv[3]);
 
     struct DataDims data_dims;
-    load_data_dims_mpi(in_filename, &data_dims);
+    load_data_dims_mpi(in_filename, rank, num_ranks, &data_dims);
 
     // printf("Loaded data dimensions: %d x %d x %d\n", data_dims.row_dim, data_dims.col_dim, data_dims.cell_dim);
 
-    int cols_per_rank = data_dims.row_dim / num_ranks;
-    int read_cols = cols_per_rank;
-    if (rank == num_ranks - 1)
-        read_cols += data_dims.row_dim % num_ranks;
+    load_data_mpi(in_filename, rank, num_ranks, data_dims, &data);
 
-    struct DataDims data_dims_local = data_dims;
-    data_dims_local.row_dim = read_cols;
+    simulate(iterations, data_dims, rank, num_ranks, &data);
 
-    load_data_mpi(in_filename, cols_per_rank*rank, data_dims_local, &data);
-
-    simulate(iterations, data_dims_local, rank, num_ranks, &data);
-
-    int err;
-    // Remove the output file if it exists
-    if (rank == 0 && access(out_filename, F_OK) == 0 && (err = remove(out_filename))) {
-        printf("Error: Could not remove file %s\n", out_filename);
-        return err;
-    }
-
-    save_data_mpi(out_filename, cols_per_rank*rank, data_dims_local, data);
-
-    MPI_Barrier(MPI_COMM_WORLD);
-
-    // Append the data dimensions to the end of the file, so it matches the input file
-    save_data_dims_mpi(out_filename, data_dims);
+    save_data_mpi(out_filename, rank, num_ranks, data_dims, data);
 
     // Finalize the MPI environment
     MPI_Finalize();

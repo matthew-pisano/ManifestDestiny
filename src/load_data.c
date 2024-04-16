@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <mpi.h>
+#include <unistd.h>
 
 #include "../include/load_data.h"
 
@@ -20,7 +21,7 @@
  */
 
 
-void load_data_dims_mpi(const char *filename, struct DataDims* data_dims) {
+void load_data_dims_mpi(const char *filename, int rank, int num_ranks, struct DataDims* data_dims) {
 
     MPI_File file;
     MPI_Status status;
@@ -62,8 +63,15 @@ void load_data_dims_mpi(const char *filename, struct DataDims* data_dims) {
         }
         exit(err);
     }
+
+    int cols_per_rank = dims[0] / num_ranks;
+    int read_cols = cols_per_rank;
+    if (rank == num_ranks - 1)
+        read_cols += dims[0] % num_ranks;
+
     data_dims->cell_dim = dims[2];
-    data_dims->row_dim = dims[0];
+    data_dims->row_dim = read_cols;
+    data_dims->global_row_dim = dims[0];
     data_dims->col_dim = dims[1];
 
     if ((err = MPI_File_close(&file))) {
@@ -73,7 +81,7 @@ void load_data_dims_mpi(const char *filename, struct DataDims* data_dims) {
 }
 
 
-void load_data_mpi(const char *filename, int col_offset, struct DataDims data_dims, unsigned short **data) {
+void load_data_mpi(const char *filename, int rank, int num_ranks, struct DataDims data_dims, unsigned short **data) {
 
     *data = (unsigned short *)calloc(data_dims.row_dim * data_dims.cell_dim * data_dims.col_dim, sizeof(unsigned short));
     if (*data == NULL) {
@@ -88,6 +96,7 @@ void load_data_mpi(const char *filename, int col_offset, struct DataDims data_di
         printf("Error: Could not open file %s\n", filename);
         exit(err);
     }
+    int col_offset = rank * data_dims.global_row_dim / num_ranks;
     if ((err = MPI_File_seek(file, col_offset * data_dims.cell_dim * data_dims.col_dim * sizeof(unsigned short), MPI_SEEK_SET))) {
         printf("Error: Could not seek to position in file\n");
 
@@ -146,7 +155,7 @@ void save_data_dims_mpi(const char *filename, struct DataDims data_dims) {
         }
         exit(err);
     }
-    unsigned short dims[3] = {data_dims.row_dim, data_dims.col_dim, data_dims.cell_dim};
+    unsigned short dims[3] = {data_dims.global_row_dim, data_dims.col_dim, data_dims.cell_dim};
     if ((err = MPI_File_write(file, dims, 3, MPI_UNSIGNED_SHORT, &status))) {
         printf("Error: Could not write data dimensions to file\n");
 
@@ -164,7 +173,7 @@ void save_data_dims_mpi(const char *filename, struct DataDims data_dims) {
 
 
 
-void save_data_mpi(const char *filename, int col_offset, struct DataDims data_dims, unsigned short *data) {
+void save_data_body_mpi(const char *filename, int col_offset, struct DataDims data_dims, unsigned short *data) {
 
     MPI_File file;
     MPI_Status status;
@@ -196,5 +205,24 @@ void save_data_mpi(const char *filename, int col_offset, struct DataDims data_di
         exit(err);
     }
 
-    // printf("Wrote %lu bytes from rank %d\n", write_cols * cell_dim * row_dim * sizeof(unsigned short), rank);
+    printf("Wrote %lu bytes from offset %d\n", data_dims.row_dim * data_dims.cell_dim * data_dims.col_dim * sizeof(unsigned short), col_offset);
+}
+
+
+void save_data_mpi(const char *filename, int rank, int num_ranks, struct DataDims data_dims, unsigned short *data) {
+
+    int err;
+    // Remove the output file if it exists
+    if (rank == 0 && access(filename, F_OK) == 0 && (err = remove(filename))) {
+        printf("Error: Could not remove file %s\n", filename);
+        exit(err);
+    }
+
+    int col_offset = rank * (data_dims.global_row_dim / num_ranks);
+    save_data_body_mpi(filename, col_offset, data_dims, data);
+
+    MPI_Barrier(MPI_COMM_WORLD);
+
+    // Append the data dimensions to the end of the file, so it matches the input file
+    save_data_dims_mpi(filename, data_dims);
 }

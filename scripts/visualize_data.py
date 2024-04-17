@@ -150,11 +150,12 @@ biome_color_map_rev = reverse_map(biome_color_map)
 # NOTE: Each cell is about 9 square miles, so multiply by 9 to get population per cell
 cities_color_map = {
     (0, 0, 0): 0,
-    (0, 255, 98): 10,
-    (53, 244, 0): 100,
-    (168, 244, 0): 500,
-    (219, 244, 0): 1000,
-    (244, 237, 0): 2500,
+    (0, 255, 98): 2,
+    (0, 255, 57): 35,
+    (53, 244, 0): 75,
+    (168, 244, 0): 400,
+    (219, 244, 0): 750,
+    (244, 237, 0): 2000,
     (244, 211, 0): 5000,
     (244, 179, 0): 7500,
     (244, 134, 0): 10000,
@@ -210,35 +211,58 @@ CELL_FEATURES = 8
 Args:
     in_file: The file to read the array from
     out_file: The file to write the image to"""
-def import_array(in_file: str, out_file: str):
+def import_array(in_file: str, out_file: str, resolution_scale=1):
     raw_data = np.fromfile(in_file, dtype=np.ushort)
 
     # Split the raw data into the image data and the dimensions
     dimensions = raw_data[-3:]
     print("Read data of dimensions: ", dimensions)
     image_data = raw_data[:-3]
-    # NOTE: The data may or may not contain information other than the population.
-    # No assumptions are made about the data other than the existence of the population.
     image_data = image_data.reshape(tuple(dimensions))
 
     # Create blank image
     output_img = np.zeros((image_data.shape[1], image_data.shape[0], 4), np.uint8)
 
+    sq_miles_per_cell = 9 / (resolution_scale ** 2)
+
     pbar = tqdm(total=image_data.shape[1] * image_data.shape[0])
-    progress = 0
     for y in range(image_data.shape[1]):
         for x in range(image_data.shape[0]):
 
             # Assign each pixel the best color, based on its population
             alpha = 255 if image_data[x, y][7] != 0 else 0
-            output_img[y, x] = np.asarray(list(get_best_population(image_data[x, y][7])[::-1]) + [alpha])
+            output_img[y, x] = np.asarray(list(get_best_population(math.ceil(image_data[x, y][7] / sq_miles_per_cell))[::-1]) + [alpha])
+
+            pbar.update(1)
+
+    pbar.close()
+
+    cv2.imwrite(out_file, output_img)
+
+
+def tally_array(in_file: str):
+    raw_data = np.fromfile(in_file, dtype=np.ushort)
+
+    # Split the raw data into the image data and the dimensions
+    dimensions = raw_data[-3:]
+    print("Read data of dimensions: ", dimensions)
+    image_data = raw_data[:-3]
+    image_data = image_data.reshape(tuple(dimensions))
+
+    total_population = 0
+
+    pbar = tqdm(total=image_data.shape[1] * image_data.shape[0])
+    progress = 0
+    for y in range(image_data.shape[1]):
+        for x in range(image_data.shape[0]):
+            total_population += image_data[x, y][7]
 
             pbar.update(1)
             progress += 1
 
     pbar.close()
 
-    cv2.imwrite(out_file, output_img)
+    return total_population
 
 
 """Exports an image to an array
@@ -246,7 +270,7 @@ Args:
     city_map: The city map to export
     out_file: The file to write the array to
     resolution_scale: The scale to increase the resolution of the output array"""
-def export_array(city_map: str, out_file: str, resolution_scale = 1):
+def export_array(city_map: str, out_file: str, resolution_scale=1):
     elev_img = cv2.cvtColor(cv2.imread("data/img/usa_topo_iso.png"), cv2.COLOR_BGR2RGB)
     water_img = cv2.cvtColor(cv2.imread("data/img/usa_water_iso.png"), cv2.COLOR_BGR2RGB)
     temp_img = cv2.cvtColor(cv2.imread("data/img/usa_temp_iso.png"), cv2.COLOR_BGR2RGB)
@@ -259,8 +283,9 @@ def export_array(city_map: str, out_file: str, resolution_scale = 1):
     row_dim = elev_img.shape[1]*resolution_scale
     feature_matrix = np.zeros((row_dim, col_dim, CELL_FEATURES))
 
+    sq_miles_per_cell = 9 / (resolution_scale ** 2)
+
     pbar = tqdm(total=elev_img.shape[0]*elev_img.shape[1])
-    progress = 0
     for y in range(elev_img.shape[0]):
         for x in range(elev_img.shape[1]):
 
@@ -291,6 +316,7 @@ def export_array(city_map: str, out_file: str, resolution_scale = 1):
             population = cities_color_map.get(tuple(city_img[y, x]))
             if population is None:
                 raise ValueError(f"Color {city_img[y, x]} not found in city color map @ ({x}, {y})")
+            population *= sq_miles_per_cell
 
             # Calculate the gradient of the current pixel
             gradient = 0
@@ -319,7 +345,6 @@ def export_array(city_map: str, out_file: str, resolution_scale = 1):
                     feature_matrix[scaled_x, scaled_y][7] = population
 
             pbar.update(1)
-            progress += 1
 
     pbar.close()
 
@@ -334,9 +359,9 @@ def export_array(city_map: str, out_file: str, resolution_scale = 1):
 def main():
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("action", choices=["import", "export"], help="Whether to import an array to make an image or export an image into an array")
+    parser.add_argument("action", choices=["import", "export", "tally"], help="Whether to import an array to make an image or export an image into an array")
     parser.add_argument("input", help="The array or city map to import")
-    parser.add_argument("output", help="The array or image to export")
+    parser.add_argument("output", nargs="?", help="The array or image to export")
     parser.add_argument("--resolution_scale", type=int, default=1, help="The scale to increase the resolution of the output array")
     args = parser.parse_args()
 
@@ -346,7 +371,13 @@ def main():
         if args.output is None:
             raise ValueError("Must provide output image to create")
 
-        import_array(args.input, args.output)
+        import_array(args.input, args.output, resolution_scale=args.resolution_scale)
+
+    elif args.action == "tally":
+        if args.input is None:
+            raise ValueError("Must provide input array to tally")
+
+        print("Total population: ", tally_array(args.input))
 
     elif args.action == "export":
         if args.input is None:

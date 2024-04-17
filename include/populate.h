@@ -7,6 +7,15 @@
 
 #include "data_rep.h"
 
+
+struct Neighborhood {
+    unsigned short count;
+    unsigned short max;
+    unsigned short avg;
+    unsigned short min;
+};
+
+
 /**
  * Get the new population of a cell based on the values of its neighbors
  * @param target_cell The base (zero) index of the cell to update

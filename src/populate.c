@@ -89,10 +89,10 @@ unsigned short calc_cell_population(int target_cell, struct DataDims data_dims, 
     if (pop > 40000) return pop;
 
     // Value of a cell on a scale of 0-100
-    short cell_value = jitter_range * 40;
+    short cell_value = jitter_range * 80;
     unsigned short nearby_water = count_neighbor_values(target_cell+2, 2, data_dims, ghost_cols, data).count;
 
-    cell_value += nearby_water > 25 ? 25 : nearby_water;
+    cell_value += nearby_water*0.75 > 25 ? 25 : nearby_water*0.75;
     cell_value += resources / 2;
     cell_value += 10 - (elev / 1000);
     cell_value += 15 - (grad / 3);
@@ -116,56 +116,57 @@ unsigned short calc_cell_population(int target_cell, struct DataDims data_dims, 
     // If the cell is uninhabited and the cell value is high enough, explore the cell
     if (pop == 0) {
         if (
-            (nearby_population.count > 0 && cell_value > 50) ||
-            (nearby_population.count > 40 && cell_value > 40) ||
-            (nearby_population.count > 70 && cell_value > 30) ||
-            (nearby_population.count > 100 && cell_value > 20)
+            (nearby_population.count > 0 && cell_value > 40) ||
+            (nearby_population.count > 4 * MIN_POP && cell_value > 35) ||
+            (nearby_population.count > 6 * MIN_POP && cell_value > 30) ||
+            (nearby_population.count > 8 * MIN_POP && cell_value > 20)
         // Randomly fail to explore the cell
-        ) return jitter < 0.05 * MAX_JITTER ? MIN_POP : 0;
+        ) return jitter < 0.9 * MAX_JITTER ? MIN_POP : 0;
 
-        return nearby_population.count > 0 && jitter < 0.002 * MAX_JITTER ? MIN_POP : 0;
+        return nearby_population.count > 0 && jitter < 0.05 * MAX_JITTER ? MIN_POP : 0;
     }
 
     // ~~~ SETTLEMENT PHASE ~~~ //
 
-    if (pop <= 1.3*MIN_POP && nearby_population.avg <= 1.3*MIN_POP) {
+    // If the cell is explored with no nearby cities
+    if (pop == MIN_POP && nearby_population.avg <= MIN_POP / 1.5) {
         // Settle new city
-        if (jitter < 1) return 10 * MIN_POP;
+        if (jitter < 3) return 8 * MIN_POP;
     }
     // If the cell is settled with nearby cities, expand the city with this cell
-    else if (pop <= 1.3*MIN_POP && jitter < cell_value / 10) {
+    else if (pop == MIN_POP && jitter < cell_value / 1.5) {
         if (nearby_population.avg < 150) return 10 + nearby_population.avg / 3;
         else if (nearby_population.avg < 300) return 10 + nearby_population.avg / 4;
         else if (nearby_population.avg < 500) return 10 + nearby_population.avg / 5;
         else return 10 + nearby_population.avg / 8;
     }
+    else if (pop == MIN_POP && jitter > MAX_JITTER - cell_value / 20)
+        return 1.5 * MIN_POP;
+
     // Skip growth if the criteria for an already settled cell are not met
-    if (pop <= 1.3*MIN_POP) return pop;
+    if (pop == MIN_POP) return MIN_POP;
 
     // ~~~ GROWTH PHASE ~~~ //
 
     // Add a bonus to the cell value based on the average population of the neighbors, scaling with the cell value
-    unsigned short neighbor_bonus = cell_value / 100.0 * nearby_population.avg;
+    unsigned short neighbor_bonus = (cell_value / 100.0) * nearby_population.avg;
     // Grow the cell by a factor of its population, scaling with the cell value, and add the neighbor bonus
-    float neighbor_growth_factor = 0.25;
-    if (nearby_population.avg > 2500) neighbor_growth_factor = 0.001;
-    if (nearby_population.avg > 1500) neighbor_growth_factor = 0.0015;
-    else if (nearby_population.avg > 1000) neighbor_growth_factor = 0.0012;
-    else if (nearby_population.avg > 750) neighbor_growth_factor = 0.002;
-    else if (nearby_population.avg > 500) neighbor_growth_factor = 0.05;
+    float neighbor_growth_factor = 0.023;
+    if (nearby_population.avg > 1500) neighbor_growth_factor = 0.00015;
+    else if (nearby_population.avg > 1000) neighbor_growth_factor = 0.0002;
+    else if (nearby_population.avg > 750) neighbor_growth_factor = 0.06;
+    else if (nearby_population.avg > 500) neighbor_growth_factor = 0.015;
 
     float city_center_bonus = 1;
-    if (pop * (1+jitter_range*0.1) >= nearby_population.max && pop > 2 * nearby_population.avg) city_center_bonus = 2.1;
+    if (pop * (1+jitter_range*0.5) > nearby_population.avg) city_center_bonus = 2.1;
 
-    float growth_factor = 0.18 * city_center_bonus;
-    if (pop > 3500) growth_factor = 0.001 * city_center_bonus;
-    else if (pop > 2500) growth_factor = 0.0005 * city_center_bonus;
-    else if (pop > 1500) growth_factor = 0.0006 * city_center_bonus;
-    else if (pop > 1000) growth_factor = 0.002 * city_center_bonus;
-    else if (pop > 750) growth_factor = 0.0025 * city_center_bonus;
-    else if (pop > 500) growth_factor = 0.0025 * city_center_bonus;
-    else if (pop > 250) growth_factor = 0.003 * city_center_bonus;
-    else if (pop <= 1.3*MIN_POP) growth_factor = 0;
+    float growth_factor = 0.011 * city_center_bonus;
+    if (pop > 3500) growth_factor *= 0.07;
+    else if (pop > 2500) growth_factor *= 0.12;
+    else if (pop > 1500) growth_factor *= 0.18;
+    else if (pop > 1000) growth_factor *= 0.2;
+    else if (pop > 750) growth_factor *= 0.22;
+    else if (pop > 500) growth_factor *= 0.3;
 
     float cell_bonus = cell_value * 1.3;
     if (cell_bonus > 100) cell_bonus = 100;

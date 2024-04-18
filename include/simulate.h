@@ -28,7 +28,7 @@ void simulate(const char *filename, int iterations, int checkpoint_iterations, s
  * @param data The buffer containing the data to simulate
  * @param result_data The buffer to store the result of the simulation
  */
-void simulate_step(struct DataDims data_dims, struct GhostCols ghost_cols, unsigned short *data,
+void simulate_step(int iteration, struct DataDims data_dims, struct GhostCols ghost_cols, unsigned short *data,
                   unsigned short *result_data);
 
 #endif //MANIFEST_DESTINY_SIMULATE_H

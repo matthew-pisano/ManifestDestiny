@@ -65,7 +65,7 @@ static inline struct Neighborhood count_neighbor_values(int target_index, int ra
 
 
 
-unsigned short calc_cell_population(int target_cell, struct DataDims data_dims, struct GhostCols ghost_cols, unsigned short *data) {
+unsigned short calc_cell_population(int target_cell, int iteration, struct DataDims data_dims, struct GhostCols ghost_cols, unsigned short *data) {
 
     unsigned short elev = data[target_cell];
     unsigned short grad = data[target_cell+1];
@@ -76,7 +76,7 @@ unsigned short calc_cell_population(int target_cell, struct DataDims data_dims, 
     unsigned short biome = data[target_cell+6];
     unsigned short pop = data[target_cell+7];
 
-    const unsigned short MIN_POP = 17;
+    const unsigned short MIN_POP = 18;
 
     const int MAX_JITTER = 10000;
     int jitter = rand() % MAX_JITTER;
@@ -114,24 +114,35 @@ unsigned short calc_cell_population(int target_cell, struct DataDims data_dims, 
     // ~~~ EXPLORATION PHASE ~~~ //
 
     // If the cell is uninhabited and the cell value is high enough, explore the cell
-    if (pop == 0) {
-        if (
-            (nearby_population.count > 0 && cell_value > 40) ||
-            (nearby_population.count > 4 * MIN_POP && cell_value > 35) ||
-            (nearby_population.count > 6 * MIN_POP && cell_value > 30) ||
-            (nearby_population.count > 8 * MIN_POP && cell_value > 20)
-        // Randomly fail to explore the cell
-        ) return jitter < 0.9 * MAX_JITTER ? MIN_POP : 0;
+//    if (pop == 0) {
+//        if (
+//            (nearby_population.count > 0 && cell_value > 50) ||
+//            (nearby_population.count > 4 * MIN_POP && cell_value > 35) ||
+//            (nearby_population.count > 6 * MIN_POP && cell_value > 30) ||
+//            (nearby_population.count > 8 * MIN_POP && cell_value > 20)
+//        // Randomly fail to explore the cell
+//        ) return jitter < 0.08 * MAX_JITTER ? MIN_POP : 0;
+//
+//        return nearby_population.count > 0 && jitter < 0.012 * MAX_JITTER ? MIN_POP : 0;
+//    }
 
-        return nearby_population.count > 0 && jitter < 0.05 * MAX_JITTER ? MIN_POP : 0;
-    }
+    float explore_chance = 0.2;
+
+    if (iteration < 400) explore_chance *= 1;
+    else if (iteration < 450) explore_chance *= 8;
+    else if (iteration < 500) explore_chance *= 10;
+    else if (iteration < 600) explore_chance *= 15;
+    else if (iteration < 1200) explore_chance *= 22;
+
+    if (pop == 0 && nearby_population.count > 0)
+        return jitter < explore_chance * (cell_value / 100.0) * MAX_JITTER ? MIN_POP : 0;
 
     // ~~~ SETTLEMENT PHASE ~~~ //
 
     // If the cell is explored with no nearby cities
     if (pop == MIN_POP && nearby_population.avg <= MIN_POP / 1.5) {
         // Settle new city
-        if (jitter < 3) return 8 * MIN_POP;
+        if (jitter < 8) return 8 * MIN_POP;
     }
     // If the cell is settled with nearby cities, expand the city with this cell
     else if (pop == MIN_POP && jitter < cell_value / 1.5) {
@@ -151,22 +162,33 @@ unsigned short calc_cell_population(int target_cell, struct DataDims data_dims, 
     // Add a bonus to the cell value based on the average population of the neighbors, scaling with the cell value
     unsigned short neighbor_bonus = (cell_value / 100.0) * nearby_population.avg;
     // Grow the cell by a factor of its population, scaling with the cell value, and add the neighbor bonus
-    float neighbor_growth_factor = 0.023;
-    if (nearby_population.avg > 1500) neighbor_growth_factor = 0.00015;
-    else if (nearby_population.avg > 1000) neighbor_growth_factor = 0.0002;
-    else if (nearby_population.avg > 750) neighbor_growth_factor = 0.06;
-    else if (nearby_population.avg > 500) neighbor_growth_factor = 0.015;
+    float neighbor_growth_factor = 0.02;
+    if (nearby_population.avg > 1500) neighbor_growth_factor = 0;
+    else if (nearby_population.avg > 1000) neighbor_growth_factor = 0;
+    else if (nearby_population.avg > 750) neighbor_growth_factor = 0.002;
+    else if (nearby_population.avg > 500) neighbor_growth_factor = 0.008;
+
+    if (iteration < 100) neighbor_growth_factor *= 0.05;
+    else if (iteration < 200) neighbor_growth_factor *= 0.2;
+    else if (iteration < 400) neighbor_growth_factor *= 0.4;
+    else if (iteration < 600) neighbor_growth_factor *= 0.6;
 
     float city_center_bonus = 1;
     if (pop * (1+jitter_range*0.5) > nearby_population.avg) city_center_bonus = 2.1;
 
     float growth_factor = 0.011 * city_center_bonus;
     if (pop > 3500) growth_factor *= 0.07;
-    else if (pop > 2500) growth_factor *= 0.12;
-    else if (pop > 1500) growth_factor *= 0.18;
-    else if (pop > 1000) growth_factor *= 0.2;
-    else if (pop > 750) growth_factor *= 0.22;
-    else if (pop > 500) growth_factor *= 0.3;
+    else if (pop > 2500) growth_factor *= 0.1;
+    else if (pop > 1500) growth_factor *= 0.11;
+    else if (pop > 1000) growth_factor *= 0.12;
+    else if (pop > 750) growth_factor *= 0.14;
+    else if (pop > 500) growth_factor *= 0.2;
+    else if (pop > 300) growth_factor *= 0.3;
+
+    if (iteration < 100) growth_factor *= 0.05;
+    else if (iteration < 200) growth_factor *= 0.2;
+    else if (iteration < 400) growth_factor *= 0.4;
+    else if (iteration < 600) growth_factor *= 0.6;
 
     float cell_bonus = cell_value * 1.3;
     if (cell_bonus > 100) cell_bonus = 100;

@@ -24,6 +24,6 @@ struct Neighborhood {
  * @param data The buffer containing the data
  * @return The new population of the cell
  */
-unsigned short calc_cell_population(int target_cell, struct DataDims data_dims, struct GhostCols ghost_cols, unsigned short *data);
+unsigned short calc_cell_population(int target_cell, int iteration, struct DataDims data_dims, struct GhostCols ghost_cols, unsigned short *data);
 
 #endif //MANIFEST_DESTINY_POPULATE_H

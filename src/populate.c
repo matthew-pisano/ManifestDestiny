@@ -89,11 +89,11 @@ unsigned short calc_cell_population(int target_cell, int iteration, struct DataD
     if (pop > 40000) return pop;
 
     // Value of a cell on a scale of 0-100
-    short cell_value = jitter_range * 80;
-    unsigned short nearby_water = count_neighbor_values(target_cell+2, 2, data_dims, ghost_cols, data).count;
+    short cell_value = jitter_range * 30;
+    unsigned short nearby_water = count_neighbor_values(target_cell+2, 2, data_dims, ghost_cols, data).avg;
 
-    cell_value += nearby_water*0.75 > 25 ? 25 : nearby_water*0.75;
-    cell_value += resources / 2;
+    cell_value += nearby_water * 7;
+    cell_value += resources;
     cell_value += 10 - (elev / 1000);
     cell_value += 15 - (grad / 3);
     cell_value += temp > 45 && temp < 70 ? 15 : 0;
@@ -103,29 +103,17 @@ unsigned short calc_cell_population(int target_cell, int iteration, struct DataD
     // If the biome is a desert
     if (biome == 5) cell_value -= 15;
 
-    // Clamp the cell value to 0-100
+    // Clamp the cell value to 0-200
     if (cell_value < 0) cell_value = 0;
-    if (cell_value > 100) cell_value = 100;
+    if (cell_value > 200) cell_value = 200;
 
-    // return cell_value * 200;
+    // return cell_value * 500;
 
     struct Neighborhood nearby_population = count_neighbor_values(target_cell+7, 2, data_dims, ghost_cols, data);
 
     // ~~~ EXPLORATION PHASE ~~~ //
 
     // If the cell is uninhabited and the cell value is high enough, explore the cell
-//    if (pop == 0) {
-//        if (
-//            (nearby_population.count > 0 && cell_value > 50) ||
-//            (nearby_population.count > 4 * MIN_POP && cell_value > 35) ||
-//            (nearby_population.count > 6 * MIN_POP && cell_value > 30) ||
-//            (nearby_population.count > 8 * MIN_POP && cell_value > 20)
-//        // Randomly fail to explore the cell
-//        ) return jitter < 0.08 * MAX_JITTER ? MIN_POP : 0;
-//
-//        return nearby_population.count > 0 && jitter < 0.012 * MAX_JITTER ? MIN_POP : 0;
-//    }
-
     float explore_chance = 0.2;
 
     if (iteration < 400) explore_chance *= 1;

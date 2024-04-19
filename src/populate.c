@@ -76,7 +76,9 @@ unsigned short calc_cell_population(int target_cell, int iteration, struct DataD
     unsigned short biome = data[target_cell+6];
     unsigned short pop = data[target_cell+7];
 
-    const unsigned short MIN_POP = 18;
+    const unsigned short RES_SCALE = data_dims.col_dim / 623;
+    const unsigned short RES_SCALE_SQ = RES_SCALE * RES_SCALE;
+    const unsigned short MIN_POP = (2 * 9) / RES_SCALE_SQ;
 
     const int MAX_JITTER = 10000;
     int jitter = rand() % MAX_JITTER;
@@ -90,7 +92,7 @@ unsigned short calc_cell_population(int target_cell, int iteration, struct DataD
 
     // Value of a cell on a scale of 0-100
     short cell_value = jitter_range * 30;
-    unsigned short nearby_water = count_neighbor_values(target_cell+2, 2, data_dims, ghost_cols, data).max;
+    unsigned short nearby_water = count_neighbor_values(target_cell+2, 2*RES_SCALE, data_dims, ghost_cols, data).max;
 
     cell_value += nearby_water * 3;
     cell_value += resources;
@@ -106,7 +108,7 @@ unsigned short calc_cell_population(int target_cell, int iteration, struct DataD
     if (cell_value < 0) cell_value = 0;
     if (cell_value > 200) cell_value = 200;
 
-    struct Neighborhood nearby_population = count_neighbor_values(target_cell+7, 2, data_dims, ghost_cols, data);
+    struct Neighborhood nearby_population = count_neighbor_values(target_cell+7, 2*RES_SCALE, data_dims, ghost_cols, data);
 
     // ~~~ EXPLORATION PHASE ~~~ //
 
@@ -115,23 +117,24 @@ unsigned short calc_cell_population(int target_cell, int iteration, struct DataD
 
     if (pop == 0 && nearby_population.count > 0)
         return jitter < explore_chance * (cell_value / 100.0 + 3) * MAX_JITTER ? MIN_POP : 0;
+    else if (pop == 0) return 0;
 
     // ~~~ SETTLEMENT PHASE ~~~ //
 
     // If the cell is explored with no nearby cities
     if (pop == MIN_POP && nearby_population.avg <= MIN_POP / 1.5) {
         // Settle new city
-        if (jitter < 8) return 8 * MIN_POP;
+        if (jitter < 8) return 8 * MIN_POP * RES_SCALE_SQ;
     }
     // If the cell is settled with nearby cities, expand the city with this cell
-    else if (pop == MIN_POP && jitter < cell_value / 1.5) {
-        if (nearby_population.avg < 150) return 10 + nearby_population.avg / 3;
-        else if (nearby_population.avg < 300) return 10 + nearby_population.avg / 4;
-        else if (nearby_population.avg < 500) return 10 + nearby_population.avg / 5;
-        else return 10 + nearby_population.avg / 8;
+    else if (pop == MIN_POP && jitter < cell_value / 7) {
+        if (nearby_population.avg < 150) return MIN_POP + nearby_population.avg / 3 * RES_SCALE_SQ;
+        else if (nearby_population.avg < 300) return MIN_POP + nearby_population.avg / 4 * RES_SCALE_SQ;
+        else if (nearby_population.avg < 500) return MIN_POP + nearby_population.avg / 5 * RES_SCALE_SQ;
+        else return MIN_POP + nearby_population.avg / 8 * RES_SCALE_SQ;
     }
     else if (pop == MIN_POP && jitter > MAX_JITTER - cell_value / 20)
-        return 1.5 * MIN_POP;
+        return 1.5 * MIN_POP * RES_SCALE_SQ;
 
     // Skip growth if the criteria for an already settled cell are not met
     if (pop == MIN_POP) return MIN_POP;
@@ -173,6 +176,9 @@ unsigned short calc_cell_population(int target_cell, int iteration, struct DataD
     else if (iteration < 200) growth_factor *= 0.2;
     else if (iteration < 400) growth_factor *= 0.4;
     else if (iteration < 600) growth_factor *= 0.6;
+
+    neighbor_growth_factor *= RES_SCALE;
+    growth_factor /= RES_SCALE_SQ;
 
     float cell_bonus = cell_value * 1.3;
     if (cell_bonus > 100) cell_bonus = 100;

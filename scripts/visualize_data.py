@@ -274,6 +274,10 @@ Args:
     out_file: The file to write the array to
     resolution_scale: The scale to increase the resolution of the output array"""
 def export_array(city_map: str, out_file: str, resolution_scale=1):
+
+    if resolution_scale > 3:
+        raise ValueError("Resolution scale cannot be greater than 3")
+
     elev_img = cv2.cvtColor(cv2.imread("data/img/usa_topo_iso.png"), cv2.COLOR_BGR2RGB)
     water_img = cv2.cvtColor(cv2.imread("data/img/usa_water_iso.png"), cv2.COLOR_BGR2RGB)
     temp_img = cv2.cvtColor(cv2.imread("data/img/usa_temp_iso.png"), cv2.COLOR_BGR2RGB)
@@ -288,7 +292,7 @@ def export_array(city_map: str, out_file: str, resolution_scale=1):
 
     sq_miles_per_cell = 9 / (resolution_scale ** 2)
 
-    pbar = tqdm(total=elev_img.shape[0]*elev_img.shape[1])
+    pbar = tqdm(total=elev_img.shape[0]*elev_img.shape[1]*resolution_scale*resolution_scale)
     for y in range(elev_img.shape[0]):
         for x in range(elev_img.shape[1]):
 

@@ -8,6 +8,9 @@
 #include "../include/data_rep.h"
 
 
+extern void __cudaFree(void* ptr);
+
+
 int main(int argc, char **argv) {
 
     int rank, num_ranks;
@@ -49,7 +52,7 @@ int main(int argc, char **argv) {
     // Finalize the MPI environment
     MPI_Finalize();
 
-    free(data);
+    __cudaFree(data);
 
     return 0;
 }

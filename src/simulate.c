@@ -11,6 +11,9 @@
 
 #include "../include/load_data.h"
 
+extern void __cudaMalloc(void** ptr, size_t size);
+extern void __cudaMemcpy(void* dst, void* src, size_t size);
+extern void __cudaFree(void* ptr);
 extern void launch_kernel(int iteration, int rank, int thread_count, struct DataDims data_dims,
         struct GhostCols ghost_cols, unsigned short *data, unsigned short *result_data);
 
@@ -28,14 +31,17 @@ static inline void swap(unsigned short **a, unsigned short **b) {
 
 void simulate(const char *filename, int iterations, int checkpoint_iterations, struct DataDims data_dims, int rank, int num_ranks, unsigned short **data) {
 
-    unsigned short *result_data = calloc(data_dims.cell_dim * data_dims.row_dim * data_dims.col_dim, sizeof(unsigned short));
-    memcpy(result_data, *data, data_dims.cell_dim * data_dims.row_dim * data_dims.col_dim * sizeof(unsigned short));
+    unsigned short *result_data = NULL;
+    __cudaMalloc((void **) &result_data, data_dims.cell_dim * data_dims.row_dim * data_dims.col_dim * sizeof(unsigned short));
+    __cudaMemcpy(result_data, *data, data_dims.cell_dim * data_dims.row_dim * data_dims.col_dim * sizeof(unsigned short));
 
     unsigned short *first_col = calloc(data_dims.col_dim * data_dims.cell_dim, sizeof(unsigned short));
     unsigned short *last_col = calloc(data_dims.col_dim * data_dims.cell_dim, sizeof(unsigned short));
 
-    unsigned short* west_ghost_col = calloc(data_dims.col_dim * data_dims.cell_dim, sizeof(unsigned short));
-    unsigned short* east_ghost_col = calloc(data_dims.col_dim * data_dims.cell_dim, sizeof(unsigned short));
+    unsigned short* west_ghost_col = NULL;
+    unsigned short* east_ghost_col = NULL;
+    __cudaMalloc((void **) &west_ghost_col, data_dims.col_dim * data_dims.cell_dim * sizeof(unsigned short));
+    __cudaMalloc((void **) &east_ghost_col, data_dims.col_dim * data_dims.cell_dim * sizeof(unsigned short));
 
     for (int it_num = 0; it_num < iterations; it_num++) {
 
@@ -71,7 +77,7 @@ void simulate(const char *filename, int iterations, int checkpoint_iterations, s
         struct GhostCols ghost_cols = {(west_rank != NO_RANK) ? west_ghost_col : NULL,
                                        (east_rank != NO_RANK) ? east_ghost_col : NULL};
 
-        launch_kernel(it_num, rank, num_ranks, data_dims, ghost_cols, *data, result_data);
+        launch_kernel(it_num, rank, 256, data_dims, ghost_cols, *data, result_data);
         swap(data, &result_data);
 
         if (it_num > 0 && it_num < iterations-1 && it_num % checkpoint_iterations == 0)
@@ -80,7 +86,7 @@ void simulate(const char *filename, int iterations, int checkpoint_iterations, s
     // Free the temporary buffers for the first and last rows
     free(first_col);
     free(last_col);
-    free(west_ghost_col);
-    free(east_ghost_col);
-    free(result_data);
+    __cudaFree(west_ghost_col);
+    __cudaFree(east_ghost_col);
+    __cudaFree(result_data);
 }

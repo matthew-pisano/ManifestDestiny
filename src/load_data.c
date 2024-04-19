@@ -22,6 +22,9 @@
  */
 
 
+extern void __cudaMalloc(void** ptr, size_t size);
+
+
 void load_data_dims_mpi(const char *filename, int rank, int num_ranks, struct DataDims* data_dims) {
 
     MPI_File file;
@@ -84,7 +87,7 @@ void load_data_dims_mpi(const char *filename, int rank, int num_ranks, struct Da
 
 void load_data_mpi(const char *filename, int rank, int num_ranks, struct DataDims data_dims, unsigned short **data) {
 
-    *data = (unsigned short *)calloc(data_dims.row_dim * data_dims.cell_dim * data_dims.col_dim, sizeof(unsigned short));
+    __cudaMalloc((void **) data, data_dims.row_dim * data_dims.cell_dim * data_dims.col_dim * sizeof(unsigned short));
     if (*data == NULL) {
         printf("Error: Could not allocate memory for data\n");
         exit(1);
@@ -157,6 +160,7 @@ void save_data_dims_mpi(const char *filename, struct DataDims data_dims) {
         exit(err);
     }
     unsigned short dims[3] = {data_dims.global_row_dim, data_dims.col_dim, data_dims.cell_dim};
+    printf("Writing dimensions: %d x %d x %d\n", dims[0], dims[1], dims[2]);
     if ((err = MPI_File_write(file, dims, 3, MPI_UNSIGNED_SHORT, &status))) {
         printf("Error: Could not write data dimensions to file\n");
 

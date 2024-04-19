@@ -12,8 +12,34 @@
 
 #include "../include/data_rep.h"
 
-extern "C" void launch_kernel(int iteration, int rank, int thread_count, struct DataDims data_dims,
-        struct GhostCols ghost_cols, unsigned short *data, unsigned short *result_data);
+
+/**
+ * Use CUDA malloc managed to allocate memory on the device.
+ * @param ptr The pointer to the memory to allocate.
+ * @param size The size of the memory to allocate.
+ */
+extern "C" void __cudaMalloc(void** ptr, size_t size) {
+    cudaMallocManaged(ptr, size);
+}
+
+/**
+ * Use CUDA memcpy to copy memory between the host and device.
+ * @param dst The destination pointer to copy to.
+ * @param src The source pointer to copy from.
+ * @param size The size of the memory to copy.
+ * @param kind The direction of the copy.
+ */
+extern "C" void __cudaMemcpy(void* dst, void* src, size_t size) {
+    cudaMemcpy(dst, src, size, cudaMemcpyDefault);
+}
+
+/**
+ * Use CUDA free to deallocate memory on the device.
+ * @param ptr The pointer to the memory to deallocate.
+ */
+extern "C" void __cudaFree(void* ptr) {
+    cudaFree(ptr);
+}
 
 
 struct Neighborhood {
@@ -36,8 +62,8 @@ struct Neighborhood {
 __device__ Neighborhood count_neighbor_values(int target_index, int radius, struct DataDims data_dims, struct GhostCols ghost_cols, unsigned short *data) {
     int cells_seen = 0;
     int count = 0;
-    int max_value = 0;
-    int min_value = 65535;
+    unsigned short max_value = 0;
+    unsigned short min_value = 65535;
     int col_len = data_dims.col_dim * data_dims.cell_dim;
     int world_len = col_len * data_dims.row_dim;
     // The offset of the given target cell from a cell boundary is maintained in the calculations.
@@ -50,7 +76,7 @@ __device__ Neighborhood count_neighbor_values(int target_index, int radius, stru
 
             int neighbor_index = target_index + x_offset + y_offset;
             bool is_y_bounded = pos_in_col + y_offset >= 0 && pos_in_col + y_offset < col_len;
-            int cell_value = 0;
+            unsigned short cell_value = 0;
             if (neighbor_index >= 0 && neighbor_index < world_len && neighbor_index != target_index && is_y_bounded) {
                 cell_value = data[neighbor_index];
                 cells_seen++;
@@ -72,10 +98,21 @@ __device__ Neighborhood count_neighbor_values(int target_index, int radius, stru
     // Ensure the count is within the bounds of an unsigned short
     count = count > 65535 ? 65535 : count;
 
-    struct Neighborhood neighborhood = {count, max_value, count / cells_seen, min_value};
+    unsigned short avg = (unsigned short) (count / cells_seen);
+
+    struct Neighborhood neighborhood = {(unsigned short)count, max_value, avg, min_value};
     return neighborhood;
 }
 
+
+__device__ int generate_jitter(int target_cell, int iteration, int max_jitter) {
+    int seed = target_cell * iteration;
+
+    int a = 16807;
+    int m = 2147483647;
+    seed = (a * seed) % m;
+    return seed % max_jitter;
+}
 
 /**
  * Get the new population of a cell based on the values of its neighbors
@@ -103,11 +140,13 @@ __device__ unsigned short calc_cell_population(int target_cell, int iteration, s
     const int MAX_JITTER = 10000;
 
     //set up the random number generator
-    curandStateMRG32k3a_t* rand_state = NULL;
+    //curandStateMRG32k3a_t* rand_state = NULL;
     //"seed", "sequence", "offset", the random state pointer
-    curand_init(500,500,500,rand_state);
-    int jitter = curand(rand_state) % MAX_JITTER;
+    //curand_init(500,500,500,rand_state);
+    int jitter = generate_jitter(target_cell, iteration, MAX_JITTER);// curand(rand_state) % MAX_JITTER;
     float jitter_range = (jitter - MAX_JITTER / 2.0) / MAX_JITTER;
+
+    //printf("Cell stats: elev: %d, grad: %d, water: %d, temp: %d, precip: %d, resources: %d, biome: %d, pop: %d\n", elev, grad, water, temp, precip, resources, biome, pop);
 
     // If the cell is water, too high, too steep, or too dry then return 0
     if (water > 0 || elev > 10000 || grad > 30) return 0;
@@ -216,14 +255,13 @@ __global__ void cuda_kernel(int iteration, struct DataDims data_dims, struct Gho
 
     for (size_t i = blockIdx.x * blockDim.x + threadIdx.x; i<data_dims.row_dim * data_dims.col_dim; i+=blockDim.x * gridDim.x) {
         size_t cell_index = i * data_dims.cell_dim;
-	
         unsigned short new_pop = calc_cell_population(cell_index, iteration, data_dims, ghost_cols, data);
-	result_data[i+7] = new_pop;
+	    result_data[cell_index+7] = new_pop;
     }
 }
 
 
-void launch_kernel(int iteration, int rank, int thread_count, struct DataDims data_dims, struct GhostCols ghost_cols,
+extern "C" void launch_kernel(int iteration, int rank, int thread_count, struct DataDims data_dims, struct GhostCols ghost_cols,
         unsigned short *data, unsigned short *result_data) {
 
     // Get the number of cuda devices and set the current device to the rank modulo the number of devices

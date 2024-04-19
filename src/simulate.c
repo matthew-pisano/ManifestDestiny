@@ -9,8 +9,10 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "../include/populate.h"
 #include "../include/load_data.h"
+
+extern void launch_kernel(int iteration, int rank, int thread_count, struct DataDims data_dims,
+        struct GhostCols ghost_cols, unsigned short *data, unsigned short *result_data);
 
 #define LAST_COL_TAG 0
 #define FIRST_COL_TAG 1
@@ -21,15 +23,6 @@ static inline void swap(unsigned short **a, unsigned short **b) {
     unsigned short *temp = *a;
     *a = *b;
     *b = temp;
-}
-
-
-void simulate_step(int iteration, struct DataDims data_dims, struct GhostCols ghost_cols, unsigned short *data, unsigned short *result_data) {
-
-    for (int i=0; i<data_dims.cell_dim * data_dims.row_dim * data_dims.col_dim; i+=data_dims.cell_dim) {
-        unsigned short new_pop = calc_cell_population(i, iteration, data_dims, ghost_cols, data);
-        result_data[i+7] = new_pop;
-    }
 }
 
 
@@ -78,7 +71,7 @@ void simulate(const char *filename, int iterations, int checkpoint_iterations, s
         struct GhostCols ghost_cols = {(west_rank != NO_RANK) ? west_ghost_col : NULL,
                                        (east_rank != NO_RANK) ? east_ghost_col : NULL};
 
-        simulate_step(it_num, data_dims, ghost_cols, *data, result_data);
+        launch_kernel(it_num, rank, num_ranks, data_dims, ghost_cols, *data, result_data);
         swap(data, &result_data);
 
         if (it_num > 0 && it_num < iterations-1 && it_num % checkpoint_iterations == 0)

@@ -53,7 +53,7 @@ static inline struct Neighborhood count_neighbor_values(int target_index, int ra
 
             count += cell_value;
             if (cell_value > max_value) max_value = cell_value;
-            if (cell_value < max_value) max_value = cell_value;
+            if (cell_value < min_value) min_value = cell_value;
         }
     }
     // Ensure the count is within the bounds of an unsigned short
@@ -83,21 +83,20 @@ unsigned short calc_cell_population(int target_cell, int iteration, struct DataD
     float jitter_range = (jitter - MAX_JITTER / 2.0) / MAX_JITTER;
 
     // If the cell is water, too high, too steep, or too dry then return 0
-    if (water > 0 || elev > 10000 || grad > 30 || precip < 10) return 0;
+    if (water > 0 || elev > 10000 || grad > 30) return 0;
 
     // If the cell is too populous then return 0
     if (pop > 40000) return pop;
 
     // Value of a cell on a scale of 0-100
     short cell_value = jitter_range * 30;
-    unsigned short nearby_water = count_neighbor_values(target_cell+2, 2, data_dims, ghost_cols, data).avg;
+    unsigned short nearby_water = count_neighbor_values(target_cell+2, 2, data_dims, ghost_cols, data).max;
 
-    cell_value += nearby_water * 7;
+    cell_value += nearby_water * 3;
     cell_value += resources;
-    cell_value += 10 - (elev / 1000);
-    cell_value += 15 - (grad / 3);
+    cell_value += 15 - (elev / 1500);
     cell_value += temp > 45 && temp < 70 ? 15 : 0;
-    cell_value += precip > 30 ? 10 : 0;
+    cell_value += precip > 30 ? 10 : precip < 10 ? -10 : 0;
     // If the biome is a swamp
     if (biome == 4) cell_value -= 10;
     // If the biome is a desert
@@ -107,23 +106,15 @@ unsigned short calc_cell_population(int target_cell, int iteration, struct DataD
     if (cell_value < 0) cell_value = 0;
     if (cell_value > 200) cell_value = 200;
 
-    // return cell_value * 500;
-
     struct Neighborhood nearby_population = count_neighbor_values(target_cell+7, 2, data_dims, ghost_cols, data);
 
     // ~~~ EXPLORATION PHASE ~~~ //
 
     // If the cell is uninhabited and the cell value is high enough, explore the cell
-    float explore_chance = 0.2;
-
-    if (iteration < 400) explore_chance *= 1;
-    else if (iteration < 450) explore_chance *= 8;
-    else if (iteration < 500) explore_chance *= 10;
-    else if (iteration < 600) explore_chance *= 15;
-    else if (iteration < 1200) explore_chance *= 22;
+    float explore_chance = 0.002 + (iteration * iteration) / 8000000.0;
 
     if (pop == 0 && nearby_population.count > 0)
-        return jitter < explore_chance * (cell_value / 100.0) * MAX_JITTER ? MIN_POP : 0;
+        return jitter < explore_chance * (cell_value / 100.0 + 3) * MAX_JITTER ? MIN_POP : 0;
 
     // ~~~ SETTLEMENT PHASE ~~~ //
 
@@ -144,6 +135,11 @@ unsigned short calc_cell_population(int target_cell, int iteration, struct DataD
 
     // Skip growth if the criteria for an already settled cell are not met
     if (pop == MIN_POP) return MIN_POP;
+
+    cell_value -= grad * 2;
+    if (cell_value < 0) cell_value = 0;
+
+    // return cell_value * 500;
 
     // ~~~ GROWTH PHASE ~~~ //
 

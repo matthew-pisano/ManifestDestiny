@@ -126,9 +126,9 @@ water_color_map_rev = reverse_map(water_color_map)
 # Distribution of industrial/precious resources
 resource_color_map = {
     (255, 255, 255): 0,  # Nothing
-    (138, 138, 138): 30,  # Low coal
-    (92, 92, 92): 35,  # Medium coal
-    (51, 51, 51): 40,  # Best coal
+    (138, 138, 138): 40,  # Low coal
+    (92, 92, 92): 45,  # Medium coal
+    (51, 51, 51): 50,  # Best coal
     (168, 156, 103): 55,  # Iron
     (238, 237, 0): 70,  # Gold
 }
@@ -152,21 +152,17 @@ biome_color_map_rev = reverse_map(biome_color_map)
 cities_color_map = {
     (0, 0, 0): 0,
     (0, 255, 98): 2,
-    (0, 255, 57): 35,
-    (53, 244, 0): 75,
-    (168, 244, 0): 400,
-    (219, 244, 0): 750,
-    (244, 237, 0): 2000,
-    (244, 211, 0): 5000,
-    (244, 179, 0): 7500,
-    (244, 134, 0): 10000,
-    (255, 100, 0): 15000,
-    (255, 70, 0): 20000,
-    (255, 43, 0): 25000,
-    (255, 54, 50): 30000,
-    (255, 123, 119): 40000,
-    (255, 184, 183): 50000,
-    (255, 255, 255): 60000,
+    (53, 255, 0): 35,
+    (205, 255, 62): 75,
+    (244, 237, 0): 400,
+    (244, 211, 0): 750,
+    (244, 179, 0): 2000,
+    (244, 134, 0): 5000,
+    (255, 100, 0): 7500,
+    (255, 70, 0): 10000,
+    (255, 43, 0): 15000,
+    (255, 54, 50): 20000,
+    (255, 184, 183): 25000,
 }
 
 cities_color_map_rev = reverse_map(cities_color_map)
@@ -241,6 +237,12 @@ def import_array(in_file: str, out_file: str, resolution_scale=1):
     cv2.imwrite(out_file, output_img)
 
 
+"""Tallies the total population in an array
+
+Args:
+    in_file: The file to read the array from
+Returns:
+    The total population in the array"""
 def tally_array(in_file: str):
     raw_data = np.fromfile(in_file, dtype=np.ushort)
 

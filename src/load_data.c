@@ -127,7 +127,7 @@ void load_data_mpi(const char *filename, int rank, int num_ranks, struct DataDim
     // printf("Read %lu bytes from rank %d\n", read_cols * cell_dim * row_dim * sizeof(unsigned short), rank);
 }
 
-void save_data_dims_mpi(const char *filename, struct DataDims data_dims) {
+void save_data_dims_mpi(const char *filename, int rank, struct DataDims data_dims) {
 
     MPI_File file;
     MPI_Status status;
@@ -135,6 +135,14 @@ void save_data_dims_mpi(const char *filename, struct DataDims data_dims) {
     if ((err = MPI_File_open(MPI_COMM_WORLD, filename, MPI_MODE_WRONLY | MPI_MODE_CREATE, MPI_INFO_NULL, &file))) {
         printf("Error: Could not open file %s\n", filename);
         exit(err);
+    }
+
+    if (rank != 0) {
+        if ((err = MPI_File_close(&file))) {
+            printf("Error: Could not close file\n");
+            exit(err);
+        }
+        return;
     }
 
     MPI_Offset file_size;
@@ -237,10 +245,10 @@ void save_data_mpi(const char *filename, int it_num, int rank, int num_ranks, st
     int col_offset = rank * (data_dims.global_row_dim / num_ranks);
     save_data_body_mpi(new_filename, col_offset, data_dims, data);
 
-    MPI_Barrier(MPI_COMM_WORLD);
-
     // Append the data dimensions to the end of the file, so it matches the input file
-    save_data_dims_mpi(new_filename, data_dims);
+    save_data_dims_mpi(new_filename, rank, data_dims);
+
+    MPI_Barrier(MPI_COMM_WORLD);
 
     free(new_filename);
 }

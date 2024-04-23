@@ -7,10 +7,13 @@
 #include<cuda.h>
 #include<cuda_runtime.h>
 
-#include<curand.h>
-#include<curand_kernel.h>
-
 #include "../include/data_rep.h"
+
+
+// Linear Congruential Generator (LCG) parameters
+#define LCG_M 2147483647 // Modulus
+#define LCG_A 1103515245 // Multiplier
+#define LCG_C 12345      // Increment
 
 
 /**
@@ -42,10 +45,17 @@ extern "C" void __cudaFree(void* ptr) {
 }
 
 
+/**
+ * Struct to hold the count, max, average, and min values of the neighbors of a cell
+ */
 struct Neighborhood {
+    /// The total sum of the values of the neighbors
     unsigned short count;
+    /// The maximum value of the neighbors
     unsigned short max;
+    /// The average value of the neighbors
     unsigned short avg;
+    /// The minimum value of the neighbors
     unsigned short min;
 };
 
@@ -77,19 +87,23 @@ __device__ Neighborhood count_neighbor_values(int target_index, int radius, stru
             int neighbor_index = target_index + x_offset + y_offset;
             bool is_y_bounded = pos_in_col + y_offset >= 0 && pos_in_col + y_offset < col_len;
             unsigned short cell_value = 0;
+            // If the neighbor is within the bounds of the world, get the value of the cell
             if (neighbor_index >= 0 && neighbor_index < world_len && neighbor_index != target_index && is_y_bounded) {
                 cell_value = data[neighbor_index];
                 cells_seen++;
             }
+            // If the neighbor is outside the right bound of the world, get the value from the West ghost column
             else if (neighbor_index < 0 && is_y_bounded && ghost_cols.west != NULL) {
                 cell_value = ghost_cols.west[pos_in_col + y_offset];
                 cells_seen++;
             }
+            // If the neighbor is outside the left bound of the world, get the value from the East ghost column
             else if (neighbor_index >= world_len && is_y_bounded && ghost_cols.east != NULL) {
                 cell_value = ghost_cols.east[pos_in_col + y_offset];
                 cells_seen++;
             }
 
+            // Update the count, max, and min values
             count += cell_value;
             if (cell_value > max_value) max_value = cell_value;
             if (cell_value < min_value) min_value = cell_value;
@@ -105,12 +119,15 @@ __device__ Neighborhood count_neighbor_values(int target_index, int radius, stru
 }
 
 
-__device__ int generate_jitter(int target_cell, int iteration, int max_jitter) {
-    int seed = target_cell * iteration;
+/**
+ * Generate a random jitter value based on a seed and a maximum jitter value
+ * @param seed The seed to generate the jitter from
+ * @param max_jitter The maximum value of the jitter
+ * @return The generated jitter value
+ */
+__device__ int generate_jitter(unsigned int seed, int max_jitter) {
 
-    int a = 16807;
-    int m = 2147483647;
-    seed = (a * seed) % m;
+    seed = (LCG_A * seed + LCG_C) % LCG_M;
     return seed % max_jitter;
 }
 
@@ -138,15 +155,10 @@ __device__ unsigned short calc_cell_population(int target_cell, int iteration, s
     const unsigned short MIN_POP = (2 * 9) / RES_SCALE_SQ;
 
     const int MAX_JITTER = 10000;
+    // Generate a jitter value based on the target cell and the iteration
+    int jitter = generate_jitter(target_cell * iteration, MAX_JITTER);
 
-    //set up the random number generator
-    //curandStateMRG32k3a_t* rand_state = NULL;
-    //"seed", "sequence", "offset", the random state pointer
-    //curand_init(500,500,500,rand_state);
-    int jitter = generate_jitter(target_cell, iteration, MAX_JITTER);// curand(rand_state) % MAX_JITTER;
     float jitter_range = (jitter - MAX_JITTER / 2.0) / MAX_JITTER;
-
-    //printf("Cell stats: elev: %d, grad: %d, water: %d, temp: %d, precip: %d, resources: %d, biome: %d, pop: %d\n", elev, grad, water, temp, precip, resources, biome, pop);
 
     // If the cell is water, too high, too steep, or too dry then return 0
     if (water > 0 || elev > 10000 || grad > 30) return 0;
@@ -219,14 +231,17 @@ __device__ unsigned short calc_cell_population(int target_cell, int iteration, s
     else if (nearby_population.avg > 750) neighbor_growth_factor = 0.002;
     else if (nearby_population.avg > 500) neighbor_growth_factor = 0.008;
 
+    // Scale the neighbor growth factor based on the iteration
     if (iteration < 100) neighbor_growth_factor *= 0.05;
     else if (iteration < 200) neighbor_growth_factor *= 0.2;
     else if (iteration < 400) neighbor_growth_factor *= 0.4;
     else if (iteration < 600) neighbor_growth_factor *= 0.6;
 
+    // Give a bonus to a cell that is the largest in its neighborhood
     float city_center_bonus = 1;
     if (pop * (1+jitter_range*0.5) > nearby_population.avg) city_center_bonus = 2.1;
 
+    // Scale the growth factor based on the population of the cell
     float growth_factor = 0.011 * city_center_bonus;
     if (pop > 3500) growth_factor *= 0.07;
     else if (pop > 2500) growth_factor *= 0.1;
@@ -236,26 +251,32 @@ __device__ unsigned short calc_cell_population(int target_cell, int iteration, s
     else if (pop > 500) growth_factor *= 0.2;
     else if (pop > 300) growth_factor *= 0.3;
 
+    // Scale the growth factor based on the iteration
     if (iteration < 100) growth_factor *= 0.05;
     else if (iteration < 200) growth_factor *= 0.2;
     else if (iteration < 400) growth_factor *= 0.4;
     else if (iteration < 600) growth_factor *= 0.6;
 
+    // Adjust the growth factors to account for higher resolutions
     neighbor_growth_factor *= RES_SCALE;
     growth_factor /= RES_SCALE_SQ;
 
+    // Cap the cell value at 77, minimizing the growth of the most valuable cells
     float cell_bonus = cell_value * 1.3;
     if (cell_bonus > 100) cell_bonus = 100;
 
+    // Calculate the new population of the cell
     return (1 + (cell_bonus / 100.0 * growth_factor)) * pop + neighbor_growth_factor * neighbor_bonus;
 }
 
 
 __global__ void cuda_kernel(int iteration, struct DataDims data_dims, struct GhostCols ghost_cols, unsigned short *data, unsigned short *result_data) {
-
+    // Stride the kernel to allow for multiple threads to process the data
     for (size_t i = blockIdx.x * blockDim.x + threadIdx.x; i<data_dims.row_dim * data_dims.col_dim; i+=blockDim.x * gridDim.x) {
+
         size_t cell_index = i * data_dims.cell_dim;
         unsigned short new_pop = calc_cell_population(cell_index, iteration, data_dims, ghost_cols, data);
+        // Update the population of the cell in the result data buffer
 	    result_data[cell_index+7] = new_pop;
     }
 }

@@ -5,7 +5,9 @@
 #ifndef MANIFEST_DESTINY_DATA_REP_H
 #define MANIFEST_DESTINY_DATA_REP_H
 
-/// The dimensions of the data
+/**
+ * The dimensions of the data
+ */
 struct DataDims {
     /// The number of elements in one cell
     int cell_dim;

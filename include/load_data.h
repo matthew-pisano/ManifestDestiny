@@ -31,9 +31,10 @@ void load_data_mpi(const char *filename, int rank, int num_ranks, struct DataDim
 /**
  * Save the dimensions of the data to the end of the file
  * @param filename The name of the file to save to
+ * @param rank The rank of the calling process
  * @param data_dims The dimensions of the data to save
  */
-void save_data_dims_mpi(const char *filename, struct DataDims data_dims);
+void save_data_dims_mpi(const char *filename, int rank, struct DataDims data_dims);
 
 
 /**

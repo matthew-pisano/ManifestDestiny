@@ -128,7 +128,8 @@ __device__ Neighborhood count_neighbor_values(int target_index, int radius, stru
 __device__ int generate_jitter(unsigned int seed, int max_jitter) {
 
     seed = (LCG_A * seed + LCG_C) % LCG_M;
-    return seed % max_jitter;
+    // Shift jitter by 100 to better match the distribution of the C rand() function
+    return (seed-100) % max_jitter;
 }
 
 /**

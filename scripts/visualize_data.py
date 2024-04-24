@@ -155,14 +155,14 @@ cities_color_map = {
     (53, 255, 0): 35,
     (205, 255, 62): 75,
     (244, 237, 0): 400,
-    (244, 211, 0): 750,#    750,
-    (244, 179, 0): 1000,#    2000,
-    (244, 134, 0): 1250,#    5000,
-    (255, 100, 0): 1500,#    7500,
-    (255, 70, 0): 1750,#   10000,
-    (255, 43, 0): 2000,#   15000,
-    (255, 54, 50): 2500, #   20000,
-    (255, 184, 183): 3000,   #): 25000,
+    (244, 211, 0): 750,
+    (244, 179, 0): 1000,
+    (244, 134, 0): 1250,
+    (255, 100, 0): 1500,
+    (255, 70, 0): 1750,
+    (255, 43, 0): 2000,
+    (255, 54, 50): 2500,
+    (255, 184, 183): 3000,
 }
 
 cities_color_map_rev = reverse_map(cities_color_map)
@@ -258,6 +258,7 @@ def tally_array(in_file: str):
     progress = 0
     for y in range(image_data.shape[1]):
         for x in range(image_data.shape[0]):
+            # Add the cell's population to the total
             total_population += image_data[x, y][7]
 
             pbar.update(1)
@@ -286,6 +287,7 @@ def export_array(city_map: str, out_file: str, resolution_scale=1):
     biome_img = cv2.cvtColor(cv2.imread("data/img/usa_biome_iso.png"), cv2.COLOR_BGR2RGB)
     city_img = cv2.cvtColor(cv2.imread(city_map), cv2.COLOR_BGR2RGB)
 
+    # Calculate the (possibly scaled) dimensions of the output array
     col_dim = elev_img.shape[0]*resolution_scale
     row_dim = elev_img.shape[1]*resolution_scale
     feature_matrix = np.zeros((row_dim, col_dim, CELL_FEATURES))
@@ -342,6 +344,7 @@ def export_array(city_map: str, out_file: str, resolution_scale=1):
                     scaled_x = x * resolution_scale + x_offset
                     scaled_y = y * resolution_scale + y_offset
 
+                    # Assign the features to the feature matrix
                     feature_matrix[scaled_x, scaled_y][0] = elevation
                     feature_matrix[scaled_x, scaled_y][1] = gradient
                     feature_matrix[scaled_x, scaled_y][2] = water_score

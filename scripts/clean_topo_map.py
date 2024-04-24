@@ -183,15 +183,4 @@ if __name__ == "__main__":
 
     process_image(ProcessEnum.ELEVATION)
 
-"""    grey_map = {}
-    for i, (color, elev) in enumerate(color_map.items()):
-        grey_color = int(i * 5.5)
-
-        if grey_color in grey_map:
-            raise ValueError(f"Color {grey_color} already in map")
-
-        grey_map[grey_color] = elev
-
-    print(grey_map)"""
-
 

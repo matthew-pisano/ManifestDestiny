@@ -17,7 +17,7 @@ Running *Manifest Destiny* requires several quick steps:
 1. Create an input array using the `Python` helper script.
     * Different resolutions can be created by changing the `--resolution_scale` parameter.  The default is 1.
    ```bash
-    python scripts/visualize_data.py export data/img/usa_cities_1763_iso.png out/1763_3.npy --resolution_scale 1
+    python scripts/visualize_data.py export data/img/usa_cities_1763_iso.png out/1763.npy --resolution_scale 1
    ```
    
 2. Compile the code using `make`.

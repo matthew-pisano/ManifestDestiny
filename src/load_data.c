@@ -70,6 +70,7 @@ void load_data_dims_mpi(const char *filename, int rank, int num_ranks, struct Da
     if (rank == num_ranks - 1)
         read_cols += dims[0] % num_ranks;
 
+    // Save the dimensions of the data to the struct pointer
     data_dims->cell_dim = dims[2];
     data_dims->row_dim = read_cols;
     data_dims->global_row_dim = dims[0];
@@ -84,6 +85,7 @@ void load_data_dims_mpi(const char *filename, int rank, int num_ranks, struct Da
 
 void load_data_mpi(const char *filename, int rank, int num_ranks, struct DataDims data_dims, unsigned short **data) {
 
+    // Allocate space for the incoming data
     *data = (unsigned short *)calloc(data_dims.row_dim * data_dims.cell_dim * data_dims.col_dim, sizeof(unsigned short));
     if (*data == NULL) {
         printf("Error: Could not allocate memory for data\n");
@@ -97,6 +99,7 @@ void load_data_mpi(const char *filename, int rank, int num_ranks, struct DataDim
         printf("Error: Could not open file %s\n", filename);
         exit(err);
     }
+    // Seek to the file offset for this rank
     int col_offset = rank * data_dims.global_row_dim / num_ranks;
     if ((err = MPI_File_seek(file, col_offset * data_dims.cell_dim * data_dims.col_dim * sizeof(unsigned short), MPI_SEEK_SET))) {
         printf("Error: Could not seek to position in file\n");
@@ -120,11 +123,9 @@ void load_data_mpi(const char *filename, int rank, int num_ranks, struct DataDim
         printf("Error: Could not close file\n");
         exit(err);
     }
-
-    // printf("Read %lu bytes from rank %d\n", read_cols * cell_dim * row_dim * sizeof(unsigned short), rank);
 }
 
-void save_data_dims_mpi(const char *filename, struct DataDims data_dims) {
+void save_data_dims_mpi(const char *filename, int rank, struct DataDims data_dims) {
 
     MPI_File file;
     MPI_Status status;
@@ -132,6 +133,15 @@ void save_data_dims_mpi(const char *filename, struct DataDims data_dims) {
     if ((err = MPI_File_open(MPI_COMM_WORLD, filename, MPI_MODE_WRONLY | MPI_MODE_CREATE, MPI_INFO_NULL, &file))) {
         printf("Error: Could not open file %s\n", filename);
         exit(err);
+    }
+
+    // Close files for all but rank 0 to avoid writing the dimensions multiple times
+    if (rank != 0) {
+        if ((err = MPI_File_close(&file))) {
+            printf("Error: Could not close file\n");
+            exit(err);
+        }
+        return;
     }
 
     MPI_Offset file_size;
@@ -156,6 +166,8 @@ void save_data_dims_mpi(const char *filename, struct DataDims data_dims) {
         }
         exit(err);
     }
+
+    // Copy the data dimensions to an array which can be written to the file
     unsigned short dims[3] = {data_dims.global_row_dim, data_dims.col_dim, data_dims.cell_dim};
     if ((err = MPI_File_write(file, dims, 3, MPI_UNSIGNED_SHORT, &status))) {
         printf("Error: Could not write data dimensions to file\n");
@@ -183,6 +195,7 @@ void save_data_body_mpi(const char *filename, int col_offset, struct DataDims da
         printf("Error: Could not open file %s\n", filename);
         exit(err);
     }
+    // Seek to the file offset for this rank
     if ((err = MPI_File_seek(file, col_offset * data_dims.cell_dim * data_dims.col_dim * sizeof(unsigned short), MPI_SEEK_SET))) {
         printf("Error: Could not seek to position in file\n");
 
@@ -192,6 +205,7 @@ void save_data_body_mpi(const char *filename, int col_offset, struct DataDims da
         }
         exit(err);
     }
+    // Write the data from this rank to the file
     if ((err = MPI_File_write(file, data, data_dims.row_dim * data_dims.cell_dim * data_dims.col_dim, MPI_UNSIGNED_SHORT, &status))) {
         printf("Error: Could not write data to file\n");
 
@@ -205,8 +219,6 @@ void save_data_body_mpi(const char *filename, int col_offset, struct DataDims da
         printf("Error: Could not close file\n");
         exit(err);
     }
-
-    // printf("Wrote %lu bytes from offset %d\n", data_dims.row_dim * data_dims.cell_dim * data_dims.col_dim * sizeof(unsigned short), col_offset);
 }
 
 
@@ -216,6 +228,7 @@ void save_data_mpi(const char *filename, int it_num, int rank, int num_ranks, st
     int new_len = strlen(filename) + 1 + 10;
     char *ext = strrchr(filename, '.');
 
+    // Copy the filename and append the iteration number
     char *new_filename = (char *)malloc(new_len * sizeof(char));
     if (ext != NULL) {
         int filename_len = ext - filename;
@@ -233,10 +246,11 @@ void save_data_mpi(const char *filename, int it_num, int rank, int num_ranks, st
     int col_offset = rank * (data_dims.global_row_dim / num_ranks);
     save_data_body_mpi(new_filename, col_offset, data_dims, data);
 
-    MPI_Barrier(MPI_COMM_WORLD);
-
     // Append the data dimensions to the end of the file, so it matches the input file
-    save_data_dims_mpi(new_filename, data_dims);
+    save_data_dims_mpi(new_filename, rank, data_dims);
+
+    // Wait for all processes to finish writing before continuing
+    MPI_Barrier(MPI_COMM_WORLD);
 
     free(new_filename);
 }

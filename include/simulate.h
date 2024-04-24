@@ -23,6 +23,7 @@ void simulate(const char *filename, int iterations, int checkpoint_iterations, s
 
 /**
  * Simulate a single step of population changes in the data buffer
+ * @param iteration The current iteration number
  * @param data_dims The dimensions of the data
  * @param ghost_cols The ghost columns for the data
  * @param data The buffer containing the data to simulate

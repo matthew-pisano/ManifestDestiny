@@ -17,6 +17,11 @@
 #define NO_RANK -1
 
 
+/**
+ * Swap the pointers of two buffers
+ * @param a The first buffer
+ * @param b The second buffer
+ */
 static inline void swap(unsigned short **a, unsigned short **b) {
     unsigned short *temp = *a;
     *a = *b;
@@ -35,12 +40,16 @@ void simulate_step(int iteration, struct DataDims data_dims, struct GhostCols gh
 
 void simulate(const char *filename, int iterations, int checkpoint_iterations, struct DataDims data_dims, int rank, int num_ranks, unsigned short **data) {
 
+    // Create a new buffer to store the result of the simulation
+    // Copy the data from the original buffer to the result buffer before beginning the simulation
     unsigned short *result_data = calloc(data_dims.cell_dim * data_dims.row_dim * data_dims.col_dim, sizeof(unsigned short));
     memcpy(result_data, *data, data_dims.cell_dim * data_dims.row_dim * data_dims.col_dim * sizeof(unsigned short));
 
+    // Allocate temporary buffers for the first and last rows for sharing with neighboring ranks
     unsigned short *first_col = calloc(data_dims.col_dim * data_dims.cell_dim, sizeof(unsigned short));
     unsigned short *last_col = calloc(data_dims.col_dim * data_dims.cell_dim, sizeof(unsigned short));
 
+    // Allocate temporary buffers for the ghost columns to get data from neighboring ranks
     unsigned short* west_ghost_col = calloc(data_dims.col_dim * data_dims.cell_dim, sizeof(unsigned short));
     unsigned short* east_ghost_col = calloc(data_dims.col_dim * data_dims.cell_dim, sizeof(unsigned short));
 
@@ -81,13 +90,17 @@ void simulate(const char *filename, int iterations, int checkpoint_iterations, s
         simulate_step(it_num, data_dims, ghost_cols, *data, result_data);
         swap(data, &result_data);
 
+        // Save the data to a checkpoint file if this is a checkpoint iteration
         if (it_num > 0 && it_num < iterations-1 && it_num % checkpoint_iterations == 0)
             save_data_mpi(filename, it_num, rank, num_ranks, data_dims, *data);
     }
+
     // Free the temporary buffers for the first and last rows
     free(first_col);
     free(last_col);
+    // Free the temporary buffers for the ghost columns
     free(west_ghost_col);
     free(east_ghost_col);
+    // Free the result buffer
     free(result_data);
 }

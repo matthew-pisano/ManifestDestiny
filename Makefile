@@ -3,6 +3,7 @@ error:
 	@exit 2
 
 debug: src/load_data.c src/simulate.c src/main.c src/cuda_kernel.cu
+	mkdir -p out build bin
 	mpicc -g -Wall -Wextra -c -o build/manifest-debug-load-data.o src/load_data.c
 	mpicc -g -Wall -Wextra -c -o build/manifest-debug-simulate.o src/simulate.c
 	mpicc -g -Wall -Wextra -c -o build/manifest-debug-main.o src/main.c
@@ -10,6 +11,7 @@ debug: src/load_data.c src/simulate.c src/main.c src/cuda_kernel.cu
 	mpicc -g -o bin/manifest-debug build/manifest-debug-load-data.o build/manifest-debug-simulate.o build/manifest-debug-main.o build/manifest-debug-cuda.o -L/usr/local/cuda-11.2/lib64/ -lcudadevrt -lcudart -lstdc++
 
 release: src/load_data.c src/simulate.c src/main.c src/cuda_kernel.cu
+	mkdir -p out build bin
 	mpicc -O3 -Wall -Wextra -c -o build/manifest-load-data.o src/load_data.c
 	mpicc -O3 -Wall -Wextra -c -o build/manifest-simulate.o src/simulate.c
 	mpicc -O3 -Wall -Wextra -c -o build/manifest-main.o src/main.c

@@ -30,7 +30,6 @@ extern "C" void __cudaMalloc(void** ptr, size_t size) {
  * @param dst The destination pointer to copy to.
  * @param src The source pointer to copy from.
  * @param size The size of the memory to copy.
- * @param kind The direction of the copy.
  */
 extern "C" void __cudaMemcpy(void* dst, void* src, size_t size) {
     cudaMemcpy(dst, src, size, cudaMemcpyDefault);
@@ -67,7 +66,7 @@ struct Neighborhood {
  * @param data_dims The dimensions of the data
  * @param ghost_cols The ghost columns for the data
  * @param data The buffer containing the data
- * @return The count of the values of the neighbors
+ * @return A struct containing the count, max, average, and min values of the neighbors
  */
 __device__ Neighborhood count_neighbor_values(int target_index, int radius, struct DataDims data_dims, struct GhostCols ghost_cols, unsigned short *data) {
     int cells_seen = 0;
@@ -127,6 +126,7 @@ __device__ Neighborhood count_neighbor_values(int target_index, int radius, stru
  */
 __device__ int generate_jitter(unsigned int seed, int max_jitter) {
 
+    // Calculate the next seed value using the LCG parameters
     seed = (LCG_A * seed + LCG_C) % LCG_M;
     // Shift jitter by 100 to better match the distribution of the C rand() function
     return (seed-100) % max_jitter;
@@ -142,6 +142,7 @@ __device__ int generate_jitter(unsigned int seed, int max_jitter) {
  */
 __device__ unsigned short calc_cell_population(int target_cell, int iteration, struct DataDims data_dims, struct GhostCols ghost_cols, unsigned short *data) {
 
+    // Get the attributes of the cell
     unsigned short elev = data[target_cell];
     unsigned short grad = data[target_cell+1];
     unsigned short water = data[target_cell+2];
@@ -151,14 +152,16 @@ __device__ unsigned short calc_cell_population(int target_cell, int iteration, s
     unsigned short biome = data[target_cell+6];
     unsigned short pop = data[target_cell+7];
 
+    // The current resolution scale of the world
     const unsigned short RES_SCALE = data_dims.col_dim / 623;
+    // The square of the resolution scale, used for modifying growth factors
     const unsigned short RES_SCALE_SQ = RES_SCALE * RES_SCALE;
+    // The minimum population of a cell
     const unsigned short MIN_POP = (2 * 9) / RES_SCALE_SQ;
-
     const int MAX_JITTER = 10000;
+
     // Generate a jitter value based on the target cell and the iteration
     int jitter = generate_jitter(target_cell * iteration, MAX_JITTER);
-
     float jitter_range = (jitter - MAX_JITTER / 2.0) / MAX_JITTER;
 
     // If the cell is water, too high, too steep, or too dry then return 0
@@ -170,6 +173,8 @@ __device__ unsigned short calc_cell_population(int target_cell, int iteration, s
     // Value of a cell on a scale of 0-100
     short cell_value = jitter_range * 30;
     unsigned short nearby_water = count_neighbor_values(target_cell+2, 2*RES_SCALE, data_dims, ghost_cols, data).max;
+
+    // ~~~ CALCULATE CELL VALUE ~~~ //
 
     cell_value += nearby_water * 3;
     cell_value += resources;

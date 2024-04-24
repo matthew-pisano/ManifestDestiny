@@ -29,7 +29,7 @@ int main(int argc, char **argv) {
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
     if (argc < 4) {
-        printf("Usage: %s <input file> <output file> <iterations> <ckpt_iters>\n", argv[0]);
+        printf("Usage: %s <input file> <output file> <iterations> [ckpt_iters]\n", argv[0]);
         return 1;
     }
 
@@ -40,8 +40,6 @@ int main(int argc, char **argv) {
 
     struct DataDims data_dims;
     load_data_dims_mpi(in_filename, rank, num_ranks, &data_dims);
-
-    // printf("Loaded data dimensions: %d x %d x %d\n", data_dims.row_dim, data_dims.col_dim, data_dims.cell_dim);
 
     load_data_mpi(in_filename, rank, num_ranks, data_dims, &data);
 

@@ -27,9 +27,9 @@ Running *Manifest Destiny* requires several quick steps:
     ```
    
 3. Run the simulation using `mpirun`.
-    * This will create a new output file in the `./out/` directory called `out/1763_out_<ckpt_iters>.npy` for each checkpoint, where `<ckpt_iters>` is the number of iterations at each saved checkpoint.
+    * This will create a new output file in the `./out/` directory called `1763_out_<ckpt_iters>.npy` for each checkpoint, where `<ckpt_iters>` is the number of iterations at each saved checkpoint.
     ```bash
-    mpirun -np <num_processes> ./bin/manifest out/1763_3.npy out/1763_out.npy <iterations> <ckpt_iters>
+    mpirun -np <num_processes> ./bin/manifest out/1763.npy out/1763_out.npy <iterations> <ckpt_iters>
     ```
 
 4. Import the simulation output using the `Python` helper script.

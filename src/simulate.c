@@ -4,18 +4,20 @@
 
 #include "../include/simulate.h"
 
+#include "../include/load_data.h"
+
 #include <stdlib.h>
 #include <mpi.h>
 #include <stdio.h>
 #include <string.h>
 
-#include "../include/load_data.h"
 
 extern void __cudaMalloc(void** ptr, size_t size);
 extern void __cudaMemcpy(void* dst, void* src, size_t size);
 extern void __cudaFree(void* ptr);
 extern void launch_kernel(int iteration, int rank, int thread_count, struct DataDims data_dims,
         struct GhostCols ghost_cols, unsigned short *data, unsigned short *result_data);
+
 
 #define LAST_COL_TAG 0
 #define FIRST_COL_TAG 1

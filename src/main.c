@@ -1,11 +1,15 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <mpi.h>
-#include <unistd.h>
+//
+// Created by matthew on 4/3/24.
+//
 
 #include "../include/load_data.h"
 #include "../include/simulate.h"
 #include "../include/data_rep.h"
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <mpi.h>
+#include <unistd.h>
 
 
 extern void __cudaFree(void* ptr);

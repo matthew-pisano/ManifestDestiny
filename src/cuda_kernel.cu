@@ -2,12 +2,11 @@
 // Created by matthew on 4/9/24.
 //
 
+#include "../include/data_rep.h"
 
 #include<stdio.h>
 #include<cuda.h>
 #include<cuda_runtime.h>
-
-#include "../include/data_rep.h"
 
 
 // Linear Congruential Generator (LCG) parameters

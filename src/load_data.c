@@ -2,13 +2,14 @@
 // Created by matthew on 4/3/24.
 //
 
+#include "../include/load_data.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <mpi.h>
 #include <unistd.h>
 #include <string.h>
 
-#include "../include/load_data.h"
 
 // NOTE: Data is flattened!  If mapped to an x,y coordinate system is in column-major order
 // Each cell is composed of several features, multiply by cell_dim to get the index of the next cell

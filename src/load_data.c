@@ -22,6 +22,9 @@
  */
 
 
+extern void __cudaMalloc(void** ptr, size_t size);
+
+
 void load_data_dims_mpi(const char *filename, int rank, int num_ranks, struct DataDims* data_dims) {
 
     MPI_File file;
@@ -86,7 +89,7 @@ void load_data_dims_mpi(const char *filename, int rank, int num_ranks, struct Da
 void load_data_mpi(const char *filename, int rank, int num_ranks, struct DataDims data_dims, unsigned short **data) {
 
     // Allocate space for the incoming data
-    *data = (unsigned short *)calloc(data_dims.row_dim * data_dims.cell_dim * data_dims.col_dim, sizeof(unsigned short));
+    __cudaMalloc((void **) data, data_dims.row_dim * data_dims.cell_dim * data_dims.col_dim * sizeof(unsigned short));
     if (*data == NULL) {
         printf("Error: Could not allocate memory for data\n");
         exit(1);

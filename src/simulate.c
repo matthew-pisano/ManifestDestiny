@@ -9,8 +9,13 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "../include/populate.h"
 #include "../include/load_data.h"
+
+extern void __cudaMalloc(void** ptr, size_t size);
+extern void __cudaMemcpy(void* dst, void* src, size_t size);
+extern void __cudaFree(void* ptr);
+extern void launch_kernel(int iteration, int rank, int thread_count, struct DataDims data_dims,
+        struct GhostCols ghost_cols, unsigned short *data, unsigned short *result_data);
 
 #define LAST_COL_TAG 0
 #define FIRST_COL_TAG 1
@@ -29,29 +34,23 @@ static inline void swap(unsigned short **a, unsigned short **b) {
 }
 
 
-void simulate_step(int iteration, struct DataDims data_dims, struct GhostCols ghost_cols, unsigned short *data, unsigned short *result_data) {
-
-    for (int i=0; i<data_dims.cell_dim * data_dims.row_dim * data_dims.col_dim; i+=data_dims.cell_dim) {
-        unsigned short new_pop = calc_cell_population(i, iteration, data_dims, ghost_cols, data);
-        result_data[i+7] = new_pop;
-    }
-}
-
-
 void simulate(const char *filename, int iterations, int checkpoint_iterations, struct DataDims data_dims, int rank, int num_ranks, unsigned short **data) {
 
     // Create a new buffer to store the result of the simulation
     // Copy the data from the original buffer to the result buffer before beginning the simulation
-    unsigned short *result_data = calloc(data_dims.cell_dim * data_dims.row_dim * data_dims.col_dim, sizeof(unsigned short));
-    memcpy(result_data, *data, data_dims.cell_dim * data_dims.row_dim * data_dims.col_dim * sizeof(unsigned short));
+    unsigned short *result_data = NULL;
+    __cudaMalloc((void **) &result_data, data_dims.cell_dim * data_dims.row_dim * data_dims.col_dim * sizeof(unsigned short));
+    __cudaMemcpy(result_data, *data, data_dims.cell_dim * data_dims.row_dim * data_dims.col_dim * sizeof(unsigned short));
 
     // Allocate temporary buffers for the first and last rows for sharing with neighboring ranks
     unsigned short *first_col = calloc(data_dims.col_dim * data_dims.cell_dim, sizeof(unsigned short));
     unsigned short *last_col = calloc(data_dims.col_dim * data_dims.cell_dim, sizeof(unsigned short));
 
     // Allocate temporary buffers for the ghost columns to get data from neighboring ranks
-    unsigned short* west_ghost_col = calloc(data_dims.col_dim * data_dims.cell_dim, sizeof(unsigned short));
-    unsigned short* east_ghost_col = calloc(data_dims.col_dim * data_dims.cell_dim, sizeof(unsigned short));
+    unsigned short* west_ghost_col = NULL;
+    unsigned short* east_ghost_col = NULL;
+    __cudaMalloc((void **) &west_ghost_col, data_dims.col_dim * data_dims.cell_dim * sizeof(unsigned short));
+    __cudaMalloc((void **) &east_ghost_col, data_dims.col_dim * data_dims.cell_dim * sizeof(unsigned short));
 
     for (int it_num = 0; it_num < iterations; it_num++) {
 
@@ -87,7 +86,7 @@ void simulate(const char *filename, int iterations, int checkpoint_iterations, s
         struct GhostCols ghost_cols = {(west_rank != NO_RANK) ? west_ghost_col : NULL,
                                        (east_rank != NO_RANK) ? east_ghost_col : NULL};
 
-        simulate_step(it_num, data_dims, ghost_cols, *data, result_data);
+        launch_kernel(it_num, rank, 256, data_dims, ghost_cols, *data, result_data);
         swap(data, &result_data);
 
         // Save the data to a checkpoint file if this is a checkpoint iteration
@@ -99,8 +98,8 @@ void simulate(const char *filename, int iterations, int checkpoint_iterations, s
     free(first_col);
     free(last_col);
     // Free the temporary buffers for the ghost columns
-    free(west_ghost_col);
-    free(east_ghost_col);
+    __cudaFree(west_ghost_col);
+    __cudaFree(east_ghost_col);
     // Free the result buffer
-    free(result_data);
+    __cudaFree(result_data);
 }

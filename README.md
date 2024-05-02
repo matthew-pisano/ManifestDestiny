@@ -1,12 +1,10 @@
 # Manifest Destiny
 
-> ***NOTE***: This branch is the MPI-only branch.  Please refer to the `cuda` branch for the MPI + CUDA implementation.
-
-*Manifest Destiny* is a population growth simulator.  It is based on a cellular automata model of the United States during its period of rapid Westward expansion from 1763 to 1863.  It is implemented in *C* and uses MPI for both parallel processing and parallel I/O.
+*Manifest Destiny* is a population growth simulator.  It is based on a cellular automata model of the United States during its period of rapid Westward expansion from 1763 to 1863.  It is implemented in *C* and uses MPI for both parallel processing and parallel I/O.  Additionally, it uses CUDA to leverage the power of GPUs for the simulation.
 
 ## Results
 
-![A result of the simulation in the year 1863](data/img/1763_output.png)
+![A result of the simulation in the year 1863](data/img/1763-timelapse.gif)
 
 *Manifest Destiny* is able to produce accurate a simulation of population growth and distribution within tens of percentage points of historical values.
 
@@ -25,13 +23,13 @@ Running *Manifest Destiny* requires several quick steps:
 2. Compile the code using `make`.
     * This will place the compiled binary in the `./bin/` directory.
     ```bash
-    make release-serial # compile the code with optimizations
+    make release # compile the code with optimizations
     ```
    
 3. Run the simulation using `mpirun`.
     * This will create a new output file in the `./out/` directory called `1763_out_<ckpt_iters>.npy` for each checkpoint, where `<ckpt_iters>` is the number of iterations at each saved checkpoint.
     ```bash
-    mpirun -np <num_processes> ./bin/manifest-serial out/1763.npy out/1763_out.npy <iterations> <ckpt_iters>
+    mpirun -np <num_processes> ./bin/manifest out/1763.npy out/1763_out.npy <iterations> <ckpt_iters>
     ```
 
 4. Import the simulation output using the `Python` helper script.

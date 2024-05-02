@@ -4,7 +4,7 @@
 
 ## Results
 
-![A result of the simulation in the year 1863](data/img/1763_output.png)
+![A result of the simulation in the year 1863](data/img/1763-timelapse.gif)
 
 *Manifest Destiny* is able to produce accurate a simulation of population growth and distribution within tens of percentage points of historical values.
 
